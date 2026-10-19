@@ -1,0 +1,3857 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#060911">
+    <title>AeroLab 2D | High-Res Computational Wind Tunnel & Aero Simulator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        slate: {
+                            850: '#151e2e',
+                            900: '#0f172a',
+                            950: '#020617',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #060911;
+            color: #f8fafc;
+            overflow-x: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+        /* Range Slider Styling */
+        input[type=range] {
+            -webkit-appearance: none;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 6px;
+            cursor: pointer;
+            background: #1e293b;
+            border-radius: 999px;
+            border: 1px solid #334155;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #38bdf8;
+            cursor: pointer;
+            -webkit-appearance: none;
+            margin-top: -6px;
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.6);
+            transition: transform 0.1s ease, background-color 0.1s ease;
+        }
+        input[type=range]::-webkit-slider-thumb:hover {
+            transform: scale(1.15);
+            background: #7dd3fc;
+        }
+        .tool-btn.active {
+            background: linear-gradient(135deg, rgba(14, 165, 233, 0.25), rgba(56, 189, 248, 0.1));
+            border-color: #38bdf8;
+            color: #38bdf8;
+            box-shadow: 0 0 12px rgba(56, 189, 248, 0.25);
+        }
+        .mode-btn.active {
+            background: #0284c7;
+            color: #ffffff;
+            border-color: #38bdf8;
+            box-shadow: 0 0 10px rgba(2, 132, 199, 0.4);
+        }
+        .canvas-container {
+            background-image: 
+                radial-gradient(rgba(51, 65, 85, 0.25) 1px, transparent 0);
+            background-size: 20px 20px;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between">
+
+    <!-- Top Telemetry & Control Header -->
+    <header class="bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-4 py-2.5 sticky top-0 z-30">
+        <div class="max-w-[1800px] mx-auto flex flex-wrap items-center justify-between gap-3">
+            <!-- Brand Title -->
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-sky-500 to-blue-700 flex items-center justify-center shadow-lg shadow-sky-500/20 border border-sky-400/30">
+                    <i class="ph-bold ph-wind text-xl text-white"></i>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h1 class="font-bold text-base tracking-tight text-white">AEROLAB <span class="text-sky-400 font-mono text-xs px-1.5 py-0.5 bg-sky-500/10 border border-sky-500/30 rounded">CFD 2D HD</span></h1>
+                        <span class="text-[11px] font-mono text-sky-300 bg-sky-950/60 border border-sky-700/40 px-1.5 py-0.5 rounded hidden sm:inline-block">720×360 (2x Res)</span>
+                        <span id="fps-badge" class="text-[11px] font-mono text-emerald-400 bg-emerald-950/60 border border-emerald-700/40 px-1.5 py-0.5 rounded">60 FPS</span>
+                    </div>
+                    <p class="text-[11px] text-slate-400 hidden sm:block">Eulerian Navier-Stokes Wind Tunnel & Vehicle Aerodynamics Lab</p>
+                </div>
+            </div>
+
+            <!-- Preset Vehicle Selector Bar -->
+            <div class="flex items-center gap-1.5 flex-wrap bg-slate-950/80 p-1 rounded-xl border border-slate-800">
+                <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400 px-2 flex items-center gap-1">
+                    <i class="ph-fill ph-car-profile text-sky-400"></i> Presets:
+                </span>
+                <button onclick="loadTemplate('boxy4x4')" class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800/80 hover:bg-slate-700 text-slate-200 border border-slate-700/60 transition flex items-center gap-1.5">
+                    <span>🚙</span> Boxy 4x4
+                </button>
+                <button onclick="loadTemplate('gtfastback')" class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800/80 hover:bg-slate-700 text-slate-200 border border-slate-700/60 transition flex items-center gap-1.5">
+                    <span>🏎️</span> GT Fastback
+                </button>
+                <button onclick="loadTemplate('f1car')" class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800/80 hover:bg-slate-700 text-slate-200 border border-slate-700/60 transition flex items-center gap-1.5">
+                    <span>🏁</span> F1 Aero Profile
+                </button>
+                <button onclick="loadTemplate('cybertruck')" class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800/80 hover:bg-slate-700 text-slate-200 border border-slate-700/60 transition flex items-center gap-1.5">
+                    <span>📐</span> Wedge Truck
+                </button>
+                <button onclick="loadTemplate('teardrop')" class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800/80 hover:bg-slate-700 text-slate-200 border border-slate-700/60 transition flex items-center gap-1.5">
+                    <span>🪶</span> Downforce Wing
+                </button>
+                <div class="h-4 w-[1px] bg-slate-800 mx-0.5"></div>
+                <button onclick="clearObstacles()" class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-rose-950/50 hover:bg-rose-900/70 text-rose-300 border border-rose-800/50 transition flex items-center gap-1">
+                    <i class="ph-bold ph-trash"></i> Clear Tunnel
+                </button>
+            </div>
+
+            <!-- Simulation Playback Controls -->
+            <div class="flex items-center gap-2">
+                <button id="btn-loop-mode" onclick="toggleGoldenLoop()" class="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-950/80 hover:bg-emerald-900/80 text-emerald-300 border border-emerald-600/50 transition flex items-center gap-1.5" title="Record 3s-4s window and loop smoothly so flow never degrades">
+                    <i class="ph-bold ph-infinity text-sm"></i>
+                    <span id="loop-status-text">3s–4s Loop: Armed</span>
+                </button>
+                <button id="btn-play-pause" onclick="togglePause()" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-sky-600 hover:bg-sky-500 text-white shadow-sm transition flex items-center gap-1.5">
+                    <i id="icon-play-pause" class="ph-fill ph-pause"></i>
+                    <span id="text-play-pause">Pause</span>
+                </button>
+                <button onclick="stepSimulationOnce()" class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition flex items-center gap-1" title="Step 1 Frame">
+                    <i class="ph-bold ph-skip-forward"></i> Step
+                </button>
+                <button onclick="resetFluidOnly()" class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition flex items-center gap-1" title="Re-run & Re-capture 3s-4s Flow Window">
+                    <i class="ph-bold ph-arrows-counter-clockwise"></i> Re-Sim 3–4s
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Workspace Container -->
+    <main class="flex-1 max-w-[1800px] w-full mx-auto p-3 grid grid-cols-1 lg:grid-cols-12 gap-3 items-start">
+        
+        <!-- Left Column: Sculpting Tools & Tunnel Controls (3 cols on lg, sticky while scrolling baselines) -->
+        <aside class="lg:col-span-3 flex flex-col gap-3 lg:sticky lg:top-16">
+            
+            <!-- Sculpting & Drawing Tools Card -->
+            <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-3.5 shadow-xl">
+                <div class="flex items-center justify-between mb-2.5">
+                    <h2 class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+                        <i class="ph-fill ph-pencil-ruler text-sky-400 text-sm"></i> Aero Sculpting Tools
+                    </h2>
+                    <div class="flex items-center gap-1">
+                        <button onclick="smoothHullAction()" class="px-2 py-1 rounded bg-sky-950/80 hover:bg-sky-900 text-xs text-sky-300 border border-sky-700/60 transition flex items-center gap-1" title="Polish & Smooth Jagged Edges">
+                            <i class="ph-bold ph-sparkle"></i> Smooth
+                        </button>
+                        <button onclick="undoAction()" id="btn-undo" disabled class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-xs text-slate-300 border border-slate-700 transition flex items-center gap-1" title="Undo Last Edit">
+                            <i class="ph-bold ph-arrow-u-up-left"></i> Undo
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Tool Grid -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-2 gap-1.5 mb-3">
+                    <button onclick="selectTool('brush')" id="tool-brush" class="tool-btn active p-2 rounded-lg border border-slate-700/80 bg-slate-800/50 hover:bg-slate-800 text-left transition flex items-center gap-2">
+                        <i class="ph-fill ph-paint-brush-broad text-lg text-sky-400"></i>
+                        <div>
+                            <div class="text-xs font-semibold leading-none">Add Body</div>
+                            <div class="text-[10px] text-slate-400 mt-0.5">Draw solid</div>
+                        </div>
+                    </button>
+
+                    <button onclick="selectTool('eraser')" id="tool-eraser" class="tool-btn p-2 rounded-lg border border-slate-700/80 bg-slate-800/50 hover:bg-slate-800 text-left transition flex items-center gap-2">
+                        <i class="ph-fill ph-eraser text-lg text-rose-400"></i>
+                        <div>
+                            <div class="text-xs font-semibold leading-none">Erase Brush</div>
+                            <div class="text-[10px] text-slate-400 mt-0.5">Rub out & carve</div>
+                        </div>
+                    </button>
+
+                    <button onclick="selectTool('boxerase')" id="tool-boxerase" class="tool-btn p-2 rounded-lg border border-slate-700/80 bg-slate-800/50 hover:bg-slate-800 text-left transition flex items-center gap-2">
+                        <i class="ph-bold ph-selection-slash text-lg text-rose-400"></i>
+                        <div>
+                            <div class="text-xs font-semibold leading-none">Box Erase</div>
+                            <div class="text-[10px] text-slate-400 mt-0.5">Drag rect erase</div>
+                        </div>
+                    </button>
+
+                    <button onclick="selectTool('rotate')" id="tool-rotate" class="tool-btn p-2 rounded-lg border border-slate-700/80 bg-slate-800/50 hover:bg-slate-800 text-left transition flex items-center gap-2">
+                        <i class="ph-bold ph-arrows-clockwise text-lg text-amber-400"></i>
+                        <div>
+                            <div class="text-xs font-semibold leading-none">Rotate Object</div>
+                            <div class="text-[10px] text-slate-400 mt-0.5">Click & drag angle</div>
+                        </div>
+                    </button>
+
+                    <button onclick="selectTool('line')" id="tool-line" class="tool-btn p-2 rounded-lg border border-slate-700/80 bg-slate-800/50 hover:bg-slate-800 text-left transition flex items-center gap-2">
+                        <i class="ph-bold ph-line-segment text-lg text-sky-300"></i>
+                        <div>
+                            <div class="text-xs font-semibold leading-none">Splitter / Line</div>
+                            <div class="text-[10px] text-slate-400 mt-0.5">Straight plates</div>
+                        </div>
+                    </button>
+
+                    <button onclick="selectTool('wing')" id="tool-wing" class="tool-btn p-2 rounded-lg border border-slate-700/80 bg-slate-800/50 hover:bg-slate-800 text-left transition flex items-center gap-2">
+                        <i class="ph-fill ph-airplane-in-flight text-lg text-emerald-400"></i>
+                        <div>
+                            <div class="text-xs font-semibold leading-none">Downforce Wing</div>
+                            <div class="text-[10px] text-slate-400 mt-0.5">Inverted airfoil</div>
+                        </div>
+                    </button>
+
+                    <button onclick="selectTool('wheel')" id="tool-wheel" class="tool-btn p-2 rounded-lg border border-slate-700/80 bg-slate-800/50 hover:bg-slate-800 text-left transition flex items-center gap-2">
+                        <i class="ph-fill ph-circle-dashed text-lg text-slate-300"></i>
+                        <div>
+                            <div class="text-xs font-semibold leading-none">Wheel / Cylinder</div>
+                            <div class="text-[10px] text-slate-400 mt-0.5">Circular obstacle</div>
+                        </div>
+                    </button>
+
+                    <button onclick="selectTool('probe')" id="tool-probe" class="tool-btn p-2 rounded-lg border border-slate-700/80 bg-slate-800/50 hover:bg-slate-800 text-left transition flex items-center gap-2">
+                        <i class="ph-bold ph-crosshair text-lg text-purple-400"></i>
+                        <div>
+                            <div class="text-xs font-semibold leading-none">Flow Probe</div>
+                            <div class="text-[10px] text-slate-400 mt-0.5">Inspect sensor</div>
+                        </div>
+                    </button>
+                </div>
+
+                <!-- Dynamic Tool Settings -->
+                <div class="bg-slate-950/70 rounded-lg p-2.5 border border-slate-800/80 space-y-2.5">
+                    <div>
+                        <div class="flex justify-between text-xs mb-1">
+                            <span class="text-slate-400" id="label-brush-size">Tool Size / Chord</span>
+                            <span class="font-mono text-sky-400 font-semibold" id="val-brush-size">16 cells (20 cm)</span>
+                        </div>
+                        <input type="range" id="slider-brush-size" min="1" max="56" step="0.5" value="16" oninput="updateToolSettings()">
+                    </div>
+
+                    <!-- Object Rotation Controls -->
+                    <div class="pt-2 border-t border-slate-800/80 space-y-1.5">
+                        <div class="flex items-center justify-between text-xs">
+                            <span class="text-amber-300 font-medium flex items-center gap-1">
+                                <i class="ph-bold ph-arrows-clockwise"></i> Rotate Scene / Object
+                            </span>
+                            <span class="font-mono text-amber-400 font-semibold" id="val-scene-rot">0°</span>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <button onclick="rotateWholeSceneBy(-5)" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-[11px] font-mono text-slate-200 border border-slate-700 transition" title="Pitch Nose Down -5°">-5°</button>
+                            <input type="range" id="slider-scene-rot" min="-45" max="45" step="1" value="0" oninput="previewSceneRotation(this.value)" onchange="commitSceneRotation()" class="flex-1">
+                            <button onclick="rotateWholeSceneBy(5)" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-[11px] font-mono text-slate-200 border border-slate-700 transition" title="Pitch Nose Up +5°">+5°</button>
+                        </div>
+                        <div class="text-[10px] text-slate-400 leading-tight">
+                            Tip: Use slider to pitch entire car, or pick <strong>Rotate Object</strong> tool to click &amp; spin any individual wing/part!
+                        </div>
+                    </div>
+
+                    <!-- Wing Angle of Attack Control -->
+                    <div id="wing-aoa-container" class="pt-1 border-t border-slate-800/80">
+                        <div class="flex justify-between text-xs mb-1">
+                            <span class="text-slate-400">New Wing Stamp AoA</span>
+                            <span class="font-mono text-emerald-400 font-semibold" id="val-wing-aoa">+12° (Downforce)</span>
+                        </div>
+                        <input type="range" id="slider-wing-aoa" min="-25" max="30" value="12" oninput="updateToolSettings()">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Saved Objects & Mobile Storage Vault Card -->
+            <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-3.5 shadow-xl space-y-2.5">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+                        <i class="ph-fill ph-floppy-disk text-emerald-400 text-sm"></i> Saved Objects Library
+                    </h2>
+                    <span id="storage-status-badge" class="text-[10px] font-mono text-emerald-400 bg-emerald-950/70 px-1.5 py-0.5 rounded border border-emerald-700/40">Device Ready</span>
+                </div>
+
+                <!-- Name & Save Input Row -->
+                <div class="flex gap-1.5">
+                    <input type="text" id="input-save-name" placeholder="Name vehicle or aero part..." maxlength="36" class="flex-1 min-w-0 bg-slate-950 border border-slate-700/90 focus:border-sky-400 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none">
+                    <button onclick="saveCurrentDesign()" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm transition flex items-center gap-1 shrink-0">
+                        <i class="ph-bold ph-download-simple"></i> Save
+                    </button>
+                </div>
+
+                <!-- Import Mode Selector (Replace vs Additive Merge) -->
+                <div class="flex items-center justify-between text-[11px] text-slate-400 pt-0.5">
+                    <span>When loading saved object:</span>
+                    <label class="inline-flex items-center gap-1.5 cursor-pointer text-sky-300 font-medium">
+                        <input type="checkbox" id="chk-merge-import" class="rounded bg-slate-800 border-slate-600 text-sky-500 focus:ring-sky-500">
+                        <span>Add / Merge into Scene</span>
+                    </label>
+                </div>
+
+                <!-- Scrollable List of Saved Designs on Device -->
+                <div id="saved-designs-list" class="max-h-40 overflow-y-auto space-y-1.5 pr-0.5">
+                    <div class="text-[11px] text-slate-500 italic py-2 text-center">No custom objects saved yet</div>
+                </div>
+
+                <!-- Portable Mobile File Export / Import (.aero.json) -->
+                <div class="pt-2 border-t border-slate-800/90 flex items-center justify-between gap-1.5">
+                    <button onclick="exportCurrentDesignFile()" class="flex-1 px-2 py-1.5 rounded-lg text-[11px] font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition flex items-center justify-center gap-1" title="Download .json file to Phone Files / iCloud / Google Drive">
+                        <i class="ph-bold ph-export text-sky-400"></i> Export .JSON
+                    </button>
+                    <button onclick="document.getElementById('file-import-input').click()" class="flex-1 px-2 py-1.5 rounded-lg text-[11px] font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition flex items-center justify-center gap-1" title="Import .json file from Phone or Desktop">
+                        <i class="ph-bold ph-folder-open text-amber-400"></i> Import .JSON
+                    </button>
+                    <input type="file" id="file-import-input" accept=".json,application/json" class="hidden" onchange="importDesignFile(event)">
+                </div>
+            </div>
+
+            <!-- Wind Tunnel Conditions Card -->
+            <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-3.5 shadow-xl space-y-3">
+                <h2 class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+                    <i class="ph-fill ph-gauge text-sky-400 text-sm"></i> Wind Tunnel Parameters
+                </h2>
+
+                <!-- Wind Speed Slider -->
+                <div>
+                    <div class="flex justify-between text-xs mb-1">
+                        <span class="text-slate-300 font-medium">Freestream Airspeed ($V_\infty$)</span>
+                        <span class="font-mono text-sky-400 font-bold" id="val-wind-speed">120 km/h (33.3 m/s)</span>
+                    </div>
+                    <input type="range" id="slider-wind-speed" min="20" max="300" step="5" value="120" oninput="updateTunnelParams()">
+                    <div class="flex justify-between text-[10px] text-slate-500 mt-0.5">
+                        <span>20 km/h (City)</span>
+                        <span>120 km/h (Hwy)</span>
+                        <span>300 km/h (F1)</span>
+                    </div>
+                </div>
+
+                <!-- Kinematic Viscosity Slider -->
+                <div>
+                    <div class="flex justify-between text-xs mb-1">
+                        <span class="text-slate-300 font-medium">Kinematic Viscosity ($\nu$)</span>
+                        <span class="font-mono text-emerald-400 font-semibold" id="val-viscosity">Attached (0.045)</span>
+                    </div>
+                    <input type="range" id="slider-viscosity" min="0.000" max="0.180" step="0.005" value="0.045" oninput="updateTunnelParams()">
+                    <div class="flex justify-between text-[10px] text-slate-500 mt-0.5">
+                        <span>0.00 Inviscid</span>
+                        <span>0.05 Attached Aero</span>
+                        <span>0.18 Syrupy Laminar</span>
+                    </div>
+                </div>
+
+                <!-- Turbulence / Vorticity Confinement Slider -->
+                <div>
+                    <div class="flex justify-between text-xs mb-1">
+                        <span class="text-slate-300 font-medium">Wake Shedding (Vorticity)</span>
+                        <span class="font-mono text-sky-400 font-semibold" id="val-vorticity">Subtle (0.6)</span>
+                    </div>
+                    <input type="range" id="slider-vorticity" min="0" max="3.5" step="0.1" value="0.6" oninput="updateTunnelParams()">
+                </div>
+
+                <!-- Smoke Density / Particle Nozzle Count -->
+                <div>
+                    <div class="flex justify-between text-xs mb-1">
+                        <span class="text-slate-300 font-medium">Smoke Stream Rake Density</span>
+                        <span class="font-mono text-sky-400 font-semibold" id="val-smoke-lines">22 Nozzles</span>
+                    </div>
+                    <input type="range" id="slider-smoke-lines" min="5" max="36" step="1" value="22" oninput="updateTunnelParams()">
+                </div>
+
+                <!-- Moving Ground Plane Toggle -->
+                <div class="pt-2 border-t border-slate-800 flex items-center justify-between">
+                    <div>
+                        <div class="text-xs font-semibold text-slate-200">Rolling Road / Ground Effect</div>
+                        <div class="text-[10px] text-slate-400">Simulates moving asphalt under car</div>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="toggle-moving-ground" checked onchange="updateTunnelParams()" class="sr-only peer">
+                        <div class="w-9 h-5 bg-slate-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-sky-500"></div>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Visualisation Overlays Card -->
+            <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-3.5 shadow-xl space-y-2.5">
+                <h2 class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+                    <i class="ph-fill ph-eye text-sky-400 text-sm"></i> Flow Field Visualization
+                </h2>
+
+                <!-- Primary Color Field Buttons -->
+                <div class="grid grid-cols-2 gap-1.5">
+                    <button onclick="setFieldMode('velocity')" id="mode-velocity" class="mode-btn active px-2.5 py-2 rounded-lg text-xs font-semibold border border-slate-700 bg-slate-800/70 text-slate-300 transition flex items-center justify-center gap-1.5">
+                        <i class="ph-bold ph-speedometer"></i> Air Velocity
+                    </button>
+                    <button onclick="setFieldMode('pressure')" id="mode-pressure" class="mode-btn px-2.5 py-2 rounded-lg text-xs font-semibold border border-slate-700 bg-slate-800/70 text-slate-300 transition flex items-center justify-center gap-1.5">
+                        <i class="ph-bold ph-arrows-in-line-horizontal"></i> Pressure Map
+                    </button>
+                    <button onclick="setFieldMode('vorticity')" id="mode-vorticity" class="mode-btn px-2.5 py-2 rounded-lg text-xs font-semibold border border-slate-700 bg-slate-800/70 text-slate-300 transition flex items-center justify-center gap-1.5">
+                        <i class="ph-bold ph-hurricane"></i> Vorticity Curl
+                    </button>
+                    <button onclick="setFieldMode('none')" id="mode-none" class="mode-btn px-2.5 py-2 rounded-lg text-xs font-semibold border border-slate-700 bg-slate-800/70 text-slate-300 transition flex items-center justify-center gap-1.5">
+                        <i class="ph-bold ph-moon"></i> Dark Tunnel
+                    </button>
+                </div>
+
+                <!-- Overlay Checkboxes -->
+                <div class="pt-2 border-t border-slate-800 space-y-2">
+                    <label class="flex items-center justify-between text-xs text-slate-300 cursor-pointer">
+                        <span class="flex items-center gap-2"><i class="ph-fill ph-waves text-sky-400"></i> Smoke Stream Particles</span>
+                        <input type="checkbox" id="chk-particles" checked class="rounded bg-slate-800 border-slate-600 text-sky-500 focus:ring-sky-500">
+                    </label>
+                    <label class="flex items-center justify-between text-xs text-slate-300 cursor-pointer">
+                        <span class="flex items-center gap-2"><i class="ph-bold ph-arrows-out-cardinal text-rose-400"></i> Surface Pressure Vectors</span>
+                        <input type="checkbox" id="chk-surface-vectors" checked class="rounded bg-slate-800 border-slate-600 text-sky-500 focus:ring-sky-500">
+                    </label>
+                    <label class="flex items-center justify-between text-xs text-slate-300 cursor-pointer">
+                        <span class="flex items-center gap-2"><i class="ph-bold ph-navigation-arrow text-emerald-400"></i> Velocity Vector Grid</span>
+                        <input type="checkbox" id="chk-velocity-vectors" class="rounded bg-slate-800 border-slate-600 text-sky-500 focus:ring-sky-500">
+                    </label>
+                    <label class="flex items-center justify-between text-xs text-slate-300 cursor-pointer">
+                        <span class="flex items-center gap-2"><i class="ph-bold ph-crosshair-simple text-amber-400"></i> Center of Pressure (CoP)</span>
+                        <input type="checkbox" id="chk-cop" checked class="rounded bg-slate-800 border-slate-600 text-sky-500 focus:ring-sky-500">
+                    </label>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Center & Right Column: Interactive Wind Tunnel Canvas & Live Telemetry (9 cols on lg) -->
+        <section class="lg:col-span-9 flex flex-col gap-3">
+            
+            <!-- Active Modification Wind Tunnel Canvas Card -->
+            <div class="bg-slate-900 border border-sky-500/40 rounded-xl p-2 shadow-2xl relative overflow-hidden">
+                
+                <!-- Top Overlay Bar inside Tunnel -->
+                <div class="flex flex-wrap items-center justify-between gap-2 px-2.5 py-1.5 mb-1.5 bg-slate-950/90 rounded-lg border border-slate-800/80 text-xs">
+                    <div class="flex items-center gap-3 flex-wrap">
+                        <span class="px-2 py-0.5 rounded bg-sky-500/20 border border-sky-400/40 text-sky-300 font-bold text-[11px] uppercase tracking-wider flex items-center gap-1">
+                            <i class="ph-fill ph-Sliders-horizontal"></i> Active Modification Pane
+                        </span>
+                        <span class="flex items-center gap-1.5 text-slate-300 font-medium">
+                            <span id="tunnel-status-dot" class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                            Inlet Flow <i class="ph-bold ph-arrow-right text-sky-400"></i>
+                        </span>
+                        <span id="loop-progress-pill" class="font-mono text-[11px] text-emerald-300 bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-700/50">
+                            Simulating 0.0s / 4.0s (3s–4s Loop Window)
+                        </span>
+                        <span id="probe-readout" class="font-mono text-[11px] text-slate-400 bg-slate-900 px-2 py-0.5 rounded border border-slate-800 hidden xl:inline-block">
+                            Hover or draw on wind tunnel
+                        </span>
+                    </div>
+
+                    <!-- Dynamic Color Legend Bar -->
+                    <div class="flex items-center gap-2">
+                        <span id="legend-min" class="font-mono text-[10px] text-slate-400">0 m/s</span>
+                        <div id="legend-gradient" class="w-36 h-3 rounded-full border border-slate-700" style="background: linear-gradient(90deg, #0c0786, #6a00a8, #b12a90, #e16462, #fca636, #f0f921);"></div>
+                        <span id="legend-max" class="font-mono text-[10px] text-slate-400">65 m/s</span>
+                    </div>
+                </div>
+
+                <!-- Main Interactive Canvas Wrapper -->
+                <div class="relative w-full aspect-[2.2/1] bg-slate-950 rounded-lg overflow-hidden border border-slate-800 canvas-container">
+                    <canvas id="wind-tunnel-canvas" class="w-full h-full block cursor-crosshair touch-none"></canvas>
+                </div>
+
+                <!-- Quick Engineering Tips Bar -->
+                <div class="mt-2 px-2.5 py-1.5 bg-slate-950/60 rounded-lg border border-slate-800/60 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400">
+                    <div>
+                        <strong class="text-sky-400">Workflow Tip:</strong> Click <strong class="text-amber-300">+ Snapshot Baseline Pane</strong> to freeze the current design's <strong class="text-emerald-400">3s–4s loop</strong> into a live comparison pane below, then keep modifying the active shape above!
+                    </div>
+                    <div class="font-mono text-[10px] text-slate-500">
+                        Right-click anytime to quick-erase
+                    </div>
+                </div>
+            </div>
+
+            <!-- Active Pane Telemetry Dashboard & Baseline Snapshot Creator -->
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-3">
+                
+                <!-- 4 Primary Force & Coefficient Cards (8 cols) -->
+                <div class="md:col-span-8 grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                    
+                    <!-- Drag Force Card -->
+                    <div class="bg-slate-900/95 border border-slate-800 rounded-xl p-3 flex flex-col justify-between relative overflow-hidden">
+                        <div class="flex items-center justify-between">
+                            <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Loop Avg Drag</span>
+                            <i class="ph-bold ph-wind text-rose-400"></i>
+                        </div>
+                        <div class="my-1.5">
+                            <div class="text-xl font-bold font-mono text-white tracking-tight flex items-baseline gap-1.5 flex-wrap" id="tele-drag">0 <span class="text-xs font-normal text-slate-400">N</span></div>
+                            <div id="std-drag" class="text-[11px] font-mono text-rose-300/90 mt-0.5">σ: ±0.0 N (3s–4s window)</div>
+                            <div id="delta-drag" class="text-[10px] font-mono text-slate-500 mt-0.5">No baseline locked</div>
+                        </div>
+                        <div class="text-[11px] text-slate-400 border-t border-slate-800/80 pt-1.5 flex justify-between">
+                            <span>Avg Power Loss:</span>
+                            <span id="tele-power" class="font-mono text-rose-300 font-medium">0.0 kW</span>
+                        </div>
+                    </div>
+
+                    <!-- Lift / Downforce Card -->
+                    <div class="bg-slate-900/95 border border-slate-800 rounded-xl p-3 flex flex-col justify-between relative overflow-hidden">
+                        <div class="flex items-center justify-between">
+                            <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Loop Avg Lift / DF</span>
+                            <span id="badge-lift-dir" class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-700/40">DOWNFORCE</span>
+                        </div>
+                        <div class="my-1.5">
+                            <div class="text-xl font-bold font-mono text-white tracking-tight flex items-baseline gap-1.5 flex-wrap" id="tele-lift">0 <span class="text-xs font-normal text-slate-400">N</span></div>
+                            <div id="std-lift" class="text-[11px] font-mono text-sky-300/90 mt-0.5">σ: ±0.0 N (3s–4s window)</div>
+                            <div id="delta-lift" class="text-[10px] font-mono text-slate-500 mt-0.5">No baseline locked</div>
+                        </div>
+                        <div class="text-[11px] text-slate-400 border-t border-slate-800/80 pt-1.5 flex justify-between">
+                            <span>Avg Vertical Load:</span>
+                            <span id="tele-lift-kg" class="font-mono text-sky-300 font-medium">0 kgf</span>
+                        </div>
+                    </div>
+
+                    <!-- Drag Coefficient (Cd) Card -->
+                    <div class="bg-slate-900/95 border border-slate-800 rounded-xl p-3 flex flex-col justify-between relative overflow-hidden">
+                        <div class="flex items-center justify-between">
+                            <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Loop Avg $C_d$</span>
+                            <i class="ph-bold ph-chart-line-down text-amber-400"></i>
+                        </div>
+                        <div class="my-1.5">
+                            <div class="text-xl font-bold font-mono text-amber-400 tracking-tight flex items-baseline gap-1.5 flex-wrap" id="tele-cd">0.00</div>
+                            <div id="std-cd" class="text-[11px] font-mono text-amber-300/90 mt-0.5">σ: ±0.000</div>
+                            <div id="delta-cd" class="text-[10px] font-mono text-slate-500 mt-0.5">Frontal Area: <span id="tele-area">0.0 m²</span></div>
+                        </div>
+                        <div class="text-[11px] text-slate-400 border-t border-slate-800/80 pt-1.5 flex justify-between">
+                            <span>Avg Lift Coeff ($C_l$):</span>
+                            <span id="tele-cl" class="font-mono text-slate-200 font-medium">0.00</span>
+                        </div>
+                    </div>
+
+                    <!-- L/D Aero Efficiency Ratio Card -->
+                    <div class="bg-slate-900/95 border border-slate-800 rounded-xl p-3 flex flex-col justify-between relative overflow-hidden">
+                        <div class="flex items-center justify-between">
+                            <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Loop Avg L/D</span>
+                            <i class="ph-bold ph-scales text-sky-400"></i>
+                        </div>
+                        <div class="my-1.5">
+                            <div class="text-xl font-bold font-mono text-sky-400 tracking-tight flex items-baseline gap-1.5 flex-wrap" id="tele-ld">0.00</div>
+                            <div id="std-ld" class="text-[11px] font-mono text-sky-300/90 mt-0.5">σ: ±0.000</div>
+                            <div id="delta-ld" class="text-[10px] font-mono text-slate-500 mt-0.5">Lift-to-Drag Ratio</div>
+                        </div>
+                        <div class="text-[11px] text-slate-400 border-t border-slate-800/80 pt-1.5 flex justify-between">
+                            <span>Avg Stagnation $\Delta P$:</span>
+                            <span id="tele-maxp" class="font-mono text-slate-200 font-medium">+0 Pa</span>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Live Sparkline & Create Baseline Pane Card (4 cols) -->
+                <div class="md:col-span-4 bg-slate-900/95 border border-slate-800 rounded-xl p-3 flex flex-col justify-between">
+                    <div class="flex items-center justify-between gap-2 mb-1.5">
+                        <div>
+                            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300">Baseline Comparison Stack</h3>
+                            <p class="text-[10px] text-slate-400">Spawn live 3s–4s baseline panes below</p>
+                        </div>
+                        <div class="flex items-center gap-1">
+                            <button onclick="lockBaseline()" id="btn-baseline" class="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/50 shadow-sm transition flex items-center gap-1.5">
+                                <i class="ph-bold ph-plus-circle"></i> <span id="text-baseline">New Baseline Pane</span>
+                            </button>
+                            <button onclick="clearBaseline()" id="btn-clear-baseline" class="hidden px-2 py-1.5 rounded-lg text-xs bg-slate-800 hover:bg-rose-950/70 text-slate-400 hover:text-rose-300 border border-slate-700 transition" title="Clear All Baseline Panes">
+                                <i class="ph-bold ph-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Mini Sparkline Canvas -->
+                    <div class="relative h-20 w-full bg-slate-950 rounded-lg border border-slate-800/90 overflow-hidden">
+                        <canvas id="sparkline-canvas" class="w-full h-full block"></canvas>
+                        <div class="absolute top-1.5 left-2 flex items-center gap-3 text-[10px] font-mono pointer-events-none">
+                            <span class="flex items-center gap-1 text-rose-400"><span class="w-2 h-0.5 bg-rose-400 inline-block"></span> Drag (N)</span>
+                            <span class="flex items-center gap-1 text-sky-400"><span class="w-2 h-0.5 bg-sky-400 inline-block"></span> Lift/Downforce (N)</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Scrollable Saved Baseline Simulation Panes Container -->
+            <div id="baseline-panes-section" class="hidden flex-col gap-4 mt-2 pt-3 border-t border-slate-800/90">
+                <div class="flex flex-wrap items-center justify-between gap-2 px-1">
+                    <div class="flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
+                        <h2 class="text-sm font-bold uppercase tracking-wider text-slate-200">Saved Baseline Simulation Panes (<span id="baseline-count-badge">0</span>)</h2>
+                        <span class="text-xs text-slate-400">— Playing live 3s–4s recorded CFD loops with full metrics for side-by-side comparison</span>
+                    </div>
+                    <button onclick="clearBaseline()" class="px-2.5 py-1 rounded-lg text-xs font-medium bg-rose-950/50 hover:bg-rose-900/70 text-rose-300 border border-rose-800/50 transition flex items-center gap-1">
+                        <i class="ph-bold ph-trash"></i> Clear All Baselines
+                    </button>
+                </div>
+
+                <!-- Dynamic Stack of Baseline Panes (Newest at Top) -->
+                <div id="baseline-panes-list" class="flex flex-col gap-5"></div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        /**
+         * ============================================================================
+         * AEROLAB 2D - HIGH-RESOLUTION (2X) EULERIAN NAVIER-STOKES WIND TUNNEL SIMULATOR
+         * ============================================================================
+         * Implements an incompressible 2D Eulerian fluid solver on a 720x360 HD grid
+         * with fractional Obstacle Volume Fraction (anti-staircasing), viscous diffusion,
+         * Gauss-Seidel SOR pressure-Poisson projection, Coanda tangential slip boundary
+         * alignment, IndexedDB + JSON mobile storage, and real-time surface force integration.
+         */
+
+        // --- 2X High-Resolution Grid & Physical Constants (720 x 360) ---
+        const NX = 720;                 // 2x High-res Grid columns (horizontal tunnel length)
+        const NY = 360;                 // 2x High-res Grid rows (vertical tunnel height)
+        const RES_SCALE = NX / 360;     // 2.0x resolution multiplier vs standard grid
+        const CELL_SIZE_M = 0.0125;     // Physical size per cell: 1.25 cm (Tunnel is 9.0m long x 4.5m tall)
+        const VEHICLE_DEPTH_M = 1.80;   // Reference depth (width of car) for 3D Newton force scaling
+        const AIR_DENSITY = 1.225;      // kg/m^3 at sea level
+
+        // --- Solver Arrays (Flattened 1D TypedArrays for 720x360 = 259,200 cells) ---
+        const size = NX * NY;
+        let u = new Float32Array(size);         // Horizontal velocity component
+        let v = new Float32Array(size);         // Vertical velocity component
+        let uPrev = new Float32Array(size);
+        let vPrev = new Float32Array(size);
+        let p = new Float32Array(size);         // Pressure field
+        let div = new Float32Array(size);       // Divergence field
+        let curl = new Float32Array(size);      // Vorticity (curl) field
+        let solid = new Uint8Array(size);       // 1 = Core Solid Obstacle, 0 = Fluid Air
+        let solidFrac = new Float32Array(size); // Smooth fractional solid density [0..1] for anti-staircased rendering & slip normals
+        let normX = new Float32Array(size);     // Smooth surface unit normal X (pointing into fluid)
+        let normY = new Float32Array(size);     // Smooth surface unit normal Y (pointing into fluid)
+
+        // --- Undo History Stack for Obstacle Sculpting ---
+        const undoStack = [];
+        const MAX_UNDO = 12;
+
+        // --- Simulation Parameters & State ---
+        let isPaused = false;
+        let windSpeedKmh = 120;         // Freestream velocity in km/h
+        let uInlet = 1.45;              // Normalized solver lattice inlet speed
+        let kinematicViscosity = 0.045; // Viscous diffusion coefficient for attached laminar boundary layers
+        let vorticityStrength = 0.6;    // Controlled wake vorticity confinement
+        let movingGround = true;        // Moving belt floor toggle
+        let fieldMode = 'velocity';     // 'velocity' | 'pressure' | 'vorticity' | 'none'
+
+        // --- Sculpting Tool State ---
+        let currentTool = 'brush';      // 'brush' | 'eraser' | 'boxerase' | 'rotate' | 'line' | 'wing' | 'wheel' | 'probe'
+        let brushRadius = 16;           // Scaled 2x for 720x360 grid (16 cells = 20 cm)
+        let wingAoADeg = 12;            // Positive = Inverted Downforce Wing AoA (leading edge low, trailing edge high)
+
+        // --- 3.0s–4.0s Golden Window Loop Playback ---
+        let goldenLoopEnabled = true;
+        let simElapsedSec = 0;          // Virtual simulation seconds since last shape/parameter edit
+        const SIM_DT_SEC = 1 / 30;      // Each physics step advances 1/30s of virtual tunnel time
+        const LOOP_START_SEC = 3.0;     // Start recording loop window at 3.0s
+        const LOOP_END_SEC = 4.0;       // Finish recording loop window at 4.0s
+        let recordedFrames = [];        // Array of { u, v, p, curl, dragN, liftN, cd, cl, maxP, copX, copY, vectors }
+        let isPlayingGoldenLoop = false;
+        let loopPlayCursor = 0;
+        let loopPlayDir = 1;            // Ping-pong 3s <-> 4s for seamless zero-jump looping
+        let captureFrameToggle = 0;     // Captures every 2nd frame in 3s-4s window to keep memory footprint light at 720x360
+
+        // --- Saved Baseline Simulation Panes State ---
+        let baselinePanes = [];         // Array of saved baseline pane objects, each with its own canvas, 3s-4s frames, particles & metrics
+        let nextBaselineId = 1;
+
+        // --- Object / Scene Rotation State ---
+        let rotBaseSolid = null;        // Snapshot of solid grid before interactive rotation
+        let rotSelectedMask = null;     // Connected component mask (or whole scene) being rotated
+        let rotPivotX = NX * 0.5;
+        let rotPivotY = NY * 0.5;
+        let rotStartAngleRad = 0;
+        let rotCurrentDeg = 0;
+        let isDraggingRotation = false;
+
+        // --- Pointer / Drawing Interaction State ---
+        let isPointerDown = false;
+        let pointerButton = 0;
+        let startGridX = 0, startGridY = 0;
+        let currGridX = -1, currGridY = -1;
+        let prevGridX = -1, prevGridY = -1;
+
+        // --- Tracer Smoke Particles ---
+        const MAX_PARTICLES = 4200;
+        const particlesX = new Float32Array(MAX_PARTICLES);
+        const particlesY = new Float32Array(MAX_PARTICLES);
+        const particlesAge = new Int32Array(MAX_PARTICLES);
+        let numSmokeLines = 22;
+
+        // --- Telemetry & Baseline State ---
+        let smoothDragN = 0;
+        let smoothLiftN = 0;
+        let smoothCd = 0;
+        let smoothCl = 0;
+        let frontalAreaM2 = 0;
+        let maxPressurePa = 0;
+        let copX = NX * 0.45;
+        let copY = NY * 0.5;
+        let hasSolidCells = false;
+
+        // Loop Period Statistical Telemetry (Mean & Standard Deviation across 3s-4s window)
+        let loopStats = {
+            sampleCount: 0,
+            isLockedWindow: false,
+            dragMean: 0,
+            dragStd: 0,
+            liftMean: 0,
+            liftStd: 0,
+            cdMean: 0,
+            cdStd: 0,
+            clMean: 0,
+            clStd: 0,
+            ldMean: 0,
+            ldStd: 0,
+            maxPMean: 0,
+            maxPStd: 0
+        };
+
+        let baselineLocked = false;
+        let baseDragN = 0;
+        let baseLiftN = 0;
+        let baseCd = 0;
+        let baseLd = 0;
+
+        // Sparkline History
+        const HISTORY_LEN = 120;
+        const dragHistory = new Array(HISTORY_LEN).fill(0);
+        const liftHistory = new Array(HISTORY_LEN).fill(0);
+
+        // Surface Force Vectors cache for rendering
+        let boundaryVectors = [];
+
+        // --- Canvas Contexts & Offscreen Buffer ---
+        const canvas = document.getElementById('wind-tunnel-canvas');
+        const ctx = canvas.getContext('2d');
+        const offCanvas = document.createElement('canvas');
+        offCanvas.width = NX;
+        offCanvas.height = NY;
+        const offCtx = offCanvas.getContext('2d');
+        const imgData = offCtx.createImageData(NX, NY);
+
+        const sparkCanvas = document.getElementById('sparkline-canvas');
+        const sparkCtx = sparkCanvas.getContext('2d');
+
+        // Helper index function
+        function IX(x, y) {
+            return y * NX + x;
+        }
+
+        // --- Color Lookup Tables for Fast Field Rendering ---
+        const COLOR_LUT_SIZE = 256;
+        const plasmaLUT = new Uint8Array(COLOR_LUT_SIZE * 3);
+        const pressureLUT = new Uint8Array(COLOR_LUT_SIZE * 3);
+        const vorticityLUT = new Uint8Array(COLOR_LUT_SIZE * 3);
+
+        function initColorLUTs() {
+            // 1. Velocity LUT (Scientific aerodynamic ramp)
+            const velStops = [
+                [0.00, [10, 15, 45]],     // Deep Navy (Stagnation / 0 speed)
+                [0.28, [18, 92, 180]],    // Royal Blue
+                [0.52, [16, 185, 160]],   // Cyan / Emerald (Freestream speed)
+                [0.74, [245, 190, 35]],   // Amber / Yellow (Accelerated flow)
+                [0.90, [239, 68, 68]],    // Crimson Red (High speed suction peak)
+                [1.00, [255, 235, 250]]   // White-hot peak
+            ];
+
+            // 2. Pressure LUT (Blue = Low Pressure Suction, Slate = Ambient 0, Yellow/Red = High Pressure Stagnation)
+            const pressStops = [
+                [0.00, [6, 182, 212]],    // Intense Cyan (Strong Suction / Vacuum under wing)
+                [0.25, [37, 99, 235]],    // Deep Blue (Low Pressure)
+                [0.50, [22, 30, 46]],     // Neutral Dark Slate (Ambient Static Pressure = 0)
+                [0.75, [234, 88, 12]],    // Orange (High Pressure)
+                [1.00, [254, 240, 138]]   // Bright Yellow-White (Stagnation Point Peak)
+            ];
+
+            // 3. Vorticity Curl LUT (Cyan = Clockwise Eddy, Dark = Laminar, Magenta/Orange = Counter-Clockwise Eddy)
+            const vortStops = [
+                [0.00, [34, 211, 238]],   // Cyan
+                [0.44, [20, 35, 65]],
+                [0.50, [12, 18, 30]],     // Dark center (Zero curl / laminar)
+                [0.56, [65, 20, 55]],
+                [1.00, [244, 114, 182]]   // Pink/Magenta
+            ];
+
+            function buildLUT(stops, targetLUT) {
+                for (let i = 0; i < COLOR_LUT_SIZE; i++) {
+                    const t = i / (COLOR_LUT_SIZE - 1);
+                    let s0 = stops[0], s1 = stops[stops.length - 1];
+                    for (let j = 0; j < stops.length - 1; j++) {
+                        if (t >= stops[j][0] && t <= stops[j + 1][0]) {
+                            s0 = stops[j];
+                            s1 = stops[j + 1];
+                            break;
+                        }
+                    }
+                    const localT = (t - s0[0]) / Math.max(0.0001, (s1[0] - s0[0]));
+                    targetLUT[i * 3 + 0] = Math.round(s0[1][0] + (s1[1][0] - s0[1][0]) * localT);
+                    targetLUT[i * 3 + 1] = Math.round(s0[1][1] + (s1[1][1] - s0[1][1]) * localT);
+                    targetLUT[i * 3 + 2] = Math.round(s0[1][2] + (s1[1][2] - s0[1][2]) * localT);
+                }
+            }
+
+            buildLUT(velStops, plasmaLUT);
+            buildLUT(pressStops, pressureLUT);
+            buildLUT(vortStops, vorticityLUT);
+        }
+
+        // --- Initialize Fluid & Smoke Particles ---
+        function initSimulation() {
+            initColorLUTs();
+            resizeCanvases();
+            updateToolSettings();
+            updateTunnelParams();
+            resetFluidOnly();
+            initParticles();
+            initMobileObjectVault();
+            // Load the GT Fastback by default
+            loadTemplate('gtfastback', false);
+        }
+
+        function resetFluidOnly() {
+            for (let y = 0; y < NY; y++) {
+                for (let x = 0; x < NX; x++) {
+                    const idx = IX(x, y);
+                    u[idx] = solid[idx] ? 0 : uInlet;
+                    v[idx] = 0;
+                    p[idx] = 0;
+                    curl[idx] = 0;
+                }
+            }
+            initParticles();
+            restartGoldenWindowCapture();
+        }
+
+        function restartGoldenWindowCapture() {
+            simElapsedSec = 0;
+            recordedFrames = [];
+            isPlayingGoldenLoop = false;
+            loopPlayCursor = 0;
+            loopPlayDir = 1;
+            captureFrameToggle = 0;
+            updateLoopBadgeDOM();
+        }
+
+        /**
+         * Computes Mean and Standard Deviation (σ) for Drag, Downforce/Lift, Cd, Cl, and L/D
+         * over the 3.0s–4.0s recorded loop frames (or recent rolling window while warming up).
+         */
+        function computeLoopWindowStatistics(framesArray) {
+            const source = (framesArray && framesArray.length >= 2) ? framesArray : null;
+            if (!hasSolidCells && !source) {
+                return {
+                    sampleCount: 0,
+                    isLockedWindow: false,
+                    dragMean: 0, dragStd: 0,
+                    liftMean: 0, liftStd: 0,
+                    cdMean: 0, cdStd: 0,
+                    clMean: 0, clStd: 0,
+                    ldMean: 0, ldStd: 0,
+                    maxPMean: 0, maxPStd: 0
+                };
+            }
+
+            if (source) {
+                const n = source.length;
+                let sumDrag = 0, sumLift = 0, sumCd = 0, sumCl = 0, sumLd = 0, sumMaxP = 0;
+                const ldVals = new Float32Array(n);
+
+                for (let i = 0; i < n; i++) {
+                    const f = source[i];
+                    const d = f.dragN;
+                    const l = f.liftN;
+                    const ld = Math.abs(d) > 1 ? (l / d) : 0;
+                    ldVals[i] = ld;
+
+                    sumDrag += d;
+                    sumLift += l;
+                    sumCd += f.cd;
+                    sumCl += f.cl;
+                    sumLd += ld;
+                    sumMaxP += f.maxP;
+                }
+
+                const dragMean = sumDrag / n;
+                const liftMean = sumLift / n;
+                const cdMean = sumCd / n;
+                const clMean = sumCl / n;
+                const ldMean = sumLd / n;
+                const maxPMean = sumMaxP / n;
+
+                let varDrag = 0, varLift = 0, varCd = 0, varCl = 0, varLd = 0, varMaxP = 0;
+                for (let i = 0; i < n; i++) {
+                    const f = source[i];
+                    const dDiff = f.dragN - dragMean;
+                    const lDiff = f.liftN - liftMean;
+                    const cdDiff = f.cd - cdMean;
+                    const clDiff = f.cl - clMean;
+                    const ldDiff = ldVals[i] - ldMean;
+                    const pDiff = f.maxP - maxPMean;
+
+                    varDrag += dDiff * dDiff;
+                    varLift += lDiff * lDiff;
+                    varCd += cdDiff * cdDiff;
+                    varCl += clDiff * clDiff;
+                    varLd += ldDiff * ldDiff;
+                    varMaxP += pDiff * pDiff;
+                }
+
+                return {
+                    sampleCount: n,
+                    isLockedWindow: true,
+                    dragMean, dragStd: Math.sqrt(varDrag / n),
+                    liftMean, liftStd: Math.sqrt(varLift / n),
+                    cdMean, cdStd: Math.sqrt(varCd / n),
+                    clMean, clStd: Math.sqrt(varCl / n),
+                    ldMean, ldStd: Math.sqrt(varLd / n),
+                    maxPMean, maxPStd: Math.sqrt(varMaxP / n)
+                };
+            } else {
+                // During 0.0s - 3.0s warm-up before loop frames are captured, compute rolling stats from recent history
+                const windowLen = 30;
+                const startIdx = Math.max(0, HISTORY_LEN - windowLen);
+                let count = 0;
+                let sumDrag = 0, sumLift = 0, sumLd = 0;
+                const lds = [];
+
+                for (let i = startIdx; i < HISTORY_LEN; i++) {
+                    const d = dragHistory[i];
+                    const l = liftHistory[i];
+                    if (d === 0 && l === 0) continue;
+                    const ld = Math.abs(d) > 1 ? (l / d) : 0;
+                    sumDrag += d;
+                    sumLift += l;
+                    sumLd += ld;
+                    lds.push({ d, l, ld });
+                    count++;
+                }
+
+                if (count === 0) {
+                    const instLd = smoothDragN > 1 ? (smoothLiftN / smoothDragN) : 0;
+                    return {
+                        sampleCount: 1,
+                        isLockedWindow: false,
+                        dragMean: smoothDragN, dragStd: 0,
+                        liftMean: smoothLiftN, liftStd: 0,
+                        cdMean: smoothCd, cdStd: 0,
+                        clMean: smoothCl, clStd: 0,
+                        ldMean: instLd, ldStd: 0,
+                        maxPMean: maxPressurePa, maxPStd: 0
+                    };
+                }
+
+                const dragMean = sumDrag / count;
+                const liftMean = sumLift / count;
+                const ldMean = sumLd / count;
+                let varDrag = 0, varLift = 0, varLd = 0;
+                for (let i = 0; i < count; i++) {
+                    varDrag += (lds[i].d - dragMean) ** 2;
+                    varLift += (lds[i].l - liftMean) ** 2;
+                    varLd += (lds[i].ld - ldMean) ** 2;
+                }
+                const dragStd = Math.sqrt(varDrag / count);
+                const liftStd = Math.sqrt(varLift / count);
+                const ldStd = Math.sqrt(varLd / count);
+
+                const vReal = windSpeedKmh / 3.6;
+                const dynPressurePa = 0.5 * AIR_DENSITY * vReal * vReal;
+                const denom = Math.max(1.0, dynPressurePa * Math.max(0.05, frontalAreaM2));
+
+                return {
+                    sampleCount: count,
+                    isLockedWindow: false,
+                    dragMean, dragStd,
+                    liftMean, liftStd,
+                    cdMean: smoothCd, cdStd: dragStd / denom,
+                    clMean: smoothCl, clStd: liftStd / denom,
+                    ldMean, ldStd,
+                    maxPMean: maxPressurePa, maxPStd: 0
+                };
+            }
+        }
+
+        function toggleGoldenLoop() {
+            goldenLoopEnabled = !goldenLoopEnabled;
+            const btn = document.getElementById('btn-loop-mode');
+            if (!goldenLoopEnabled) {
+                isPlayingGoldenLoop = false;
+                btn.className = 'px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-400 border border-slate-700 transition flex items-center gap-1.5';
+            } else {
+                btn.className = 'px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-950/80 hover:bg-emerald-900/80 text-emerald-300 border border-emerald-600/50 transition flex items-center gap-1.5';
+                if (recordedFrames.length > 10 && simElapsedSec >= LOOP_END_SEC) {
+                    isPlayingGoldenLoop = true;
+                } else {
+                    resetFluidOnly();
+                }
+            }
+            updateLoopBadgeDOM();
+        }
+
+        function updateLoopBadgeDOM() {
+            const statusText = document.getElementById('loop-status-text');
+            const pill = document.getElementById('loop-progress-pill');
+            const dot = document.getElementById('tunnel-status-dot');
+            if (!statusText || !pill) return;
+
+            if (!goldenLoopEnabled) {
+                statusText.textContent = '3s–4s Loop: Off';
+                pill.textContent = `Continuous Live CFD (${simElapsedSec.toFixed(1)}s)`;
+                pill.className = 'font-mono text-[11px] text-sky-300 bg-sky-950/80 px-2 py-0.5 rounded border border-sky-700/50';
+                dot.className = 'w-2 h-2 rounded-full bg-sky-400 animate-pulse';
+                return;
+            }
+
+            if (isPlayingGoldenLoop) {
+                const virtualTime = (LOOP_START_SEC + (loopPlayCursor / Math.max(1, recordedFrames.length - 1)) * (LOOP_END_SEC - LOOP_START_SEC)).toFixed(2);
+                statusText.textContent = '3s–4s Loop: Active';
+                pill.innerHTML = `<i class="ph-bold ph-repeat"></i> Looping 3s–4s Window (t = ${virtualTime}s)`;
+                pill.className = 'font-mono text-[11px] text-emerald-300 bg-emerald-950/90 px-2 py-0.5 rounded border border-emerald-500/60 shadow-sm';
+                dot.className = 'w-2 h-2 rounded-full bg-emerald-400';
+            } else if (simElapsedSec < LOOP_START_SEC) {
+                statusText.textContent = `Warming (${simElapsedSec.toFixed(1)}s)`;
+                pill.textContent = `Stabilizing Flow: ${simElapsedSec.toFixed(1)}s / 3.0s (Capturing 3s–4s)`;
+                pill.className = 'font-mono text-[11px] text-amber-300 bg-amber-950/80 px-2 py-0.5 rounded border border-amber-700/50';
+                dot.className = 'w-2 h-2 rounded-full bg-amber-400 animate-pulse';
+            } else {
+                statusText.textContent = `Capturing (${simElapsedSec.toFixed(1)}s)`;
+                pill.textContent = `Recording 3s–4s Loop: ${simElapsedSec.toFixed(1)}s / 4.0s (${recordedFrames.length} frames)`;
+                pill.className = 'font-mono text-[11px] text-sky-300 bg-sky-950/90 px-2 py-0.5 rounded border border-sky-500/60';
+                dot.className = 'w-2 h-2 rounded-full bg-sky-400 animate-ping';
+            }
+        }
+
+        function captureGoldenFrame() {
+            // Capture every 2nd frame at 720x360 resolution (~15 keyframes) for smooth 60fps interpolated playback
+            captureFrameToggle = (captureFrameToggle + 1) % 2;
+            if (captureFrameToggle !== 1 && recordedFrames.length > 0) return;
+
+            recordedFrames.push({
+                u: new Float32Array(u),
+                v: new Float32Array(v),
+                p: new Float32Array(p),
+                curl: new Float32Array(curl),
+                dragN: smoothDragN,
+                liftN: smoothLiftN,
+                cd: smoothCd,
+                cl: smoothCl,
+                maxP: maxPressurePa,
+                copX: copX,
+                copY: copY,
+                vectors: boundaryVectors.slice()
+            });
+        }
+
+        function stepGoldenLoopPlayback() {
+            if (recordedFrames.length < 2) return;
+
+            loopPlayCursor += 0.45 * loopPlayDir;
+            if (loopPlayCursor >= recordedFrames.length - 1) {
+                loopPlayCursor = recordedFrames.length - 1;
+                loopPlayDir = -1;
+            } else if (loopPlayCursor <= 0) {
+                loopPlayCursor = 0;
+                loopPlayDir = 1;
+            }
+
+            const idx0 = Math.floor(loopPlayCursor);
+            const idx1 = Math.min(recordedFrames.length - 1, idx0 + 1);
+            const alpha = loopPlayCursor - idx0;
+
+            const f0 = recordedFrames[idx0];
+            const f1 = recordedFrames[idx1];
+
+            // Interpolate fluid velocity, pressure, and vorticity fields smoothly between recorded frames
+            const oneMinusA = 1.0 - alpha;
+            for (let i = 0; i < size; i++) {
+                if (solid[i]) {
+                    u[i] = 0;
+                    v[i] = 0;
+                    p[i] = 0;
+                    curl[i] = 0;
+                } else {
+                    u[i] = f0.u[i] * oneMinusA + f1.u[i] * alpha;
+                    v[i] = f0.v[i] * oneMinusA + f1.v[i] * alpha;
+                    p[i] = f0.p[i] * oneMinusA + f1.p[i] * alpha;
+                    curl[i] = f0.curl[i] * oneMinusA + f1.curl[i] * alpha;
+                }
+            }
+
+            // Interpolate telemetry smoothly
+            smoothDragN = f0.dragN * oneMinusA + f1.dragN * alpha;
+            smoothLiftN = f0.liftN * oneMinusA + f1.liftN * alpha;
+            smoothCd = f0.cd * oneMinusA + f1.cd * alpha;
+            smoothCl = f0.cl * oneMinusA + f1.cl * alpha;
+            maxPressurePa = Math.round(f0.maxP * oneMinusA + f1.maxP * alpha);
+            copX = f0.copX * oneMinusA + f1.copX * alpha;
+            copY = f0.copY * oneMinusA + f1.copY * alpha;
+            boundaryVectors = alpha < 0.5 ? f0.vectors : f1.vectors;
+
+            dragHistory.push(smoothDragN);
+            dragHistory.shift();
+            liftHistory.push(smoothLiftN);
+            liftHistory.shift();
+
+            updateTelemetryDOM();
+            updateLoopBadgeDOM();
+
+            // Keep smoke tracer particles flowing continuously through the looped velocity field!
+            advectParticlesOnly();
+        }
+
+        function initParticles() {
+            for (let i = 0; i < MAX_PARTICLES; i++) {
+                respawnParticle(i, true);
+            }
+        }
+
+        function respawnParticle(i, randomX = false) {
+            particlesX[i] = randomX ? Math.random() * (NX - 10) + 5 : 5 + Math.random() * 10;
+            const nozzleIdx = i % numSmokeLines;
+            const marginY = Math.round(14 * RES_SCALE);
+            const usableHeight = NY - marginY * 2;
+            const nozzleY = marginY + (nozzleIdx / Math.max(1, numSmokeLines - 1)) * usableHeight;
+            particlesY[i] = nozzleY + (Math.random() - 0.5) * 0.7;
+            particlesAge[i] = Math.floor(Math.random() * 260);
+        }
+
+        /**
+         * ============================================================================
+         * MOBILE & DESKTOP PERSISTENT OBJECT VAULT (IndexedDB + RLE JSON Export/Import)
+         * ============================================================================
+         * Works seamlessly when hosted as a standalone index.html on GitHub Pages
+         * on iOS Safari, Android Chrome, and desktop browsers.
+         */
+        const VAULT_DB_NAME = 'AeroLab2D_MobileVault_v1';
+        const VAULT_STORE_NAME = 'saved_objects';
+        let vaultDB = null;
+        let memoryVaultFallback = [];
+
+        // Run-Length Encode (RLE) the 720x360 binary solid grid into a tiny compact array
+        function compressSolidGrid(gridArray) {
+            const rle = [];
+            let currentVal = gridArray[0] ? 1 : 0;
+            let runCount = 0;
+            for (let i = 0; i < gridArray.length; i++) {
+                const v = gridArray[i] ? 1 : 0;
+                if (v === currentVal) {
+                    runCount++;
+                } else {
+                    rle.push(runCount);
+                    currentVal = v;
+                    runCount = 1;
+                }
+            }
+            rle.push(runCount);
+            return {
+                nx: NX,
+                ny: NY,
+                startVal: gridArray[0] ? 1 : 0,
+                runs: rle
+            };
+        }
+
+        // Decompress RLE payload back onto a 720x360 Uint8Array (automatically scales if imported from an older resolution)
+        function decompressSolidGrid(payload) {
+            const out = new Uint8Array(size);
+            if (!payload || !Array.isArray(payload.runs)) return out;
+
+            const srcNX = payload.nx || NX;
+            const srcNY = payload.ny || NY;
+            const srcSize = srcNX * srcNY;
+            const temp = new Uint8Array(srcSize);
+
+            let val = payload.startVal ? 1 : 0;
+            let ptr = 0;
+            for (let i = 0; i < payload.runs.length; i++) {
+                const count = payload.runs[i];
+                for (let c = 0; c < count && ptr < srcSize; c++) {
+                    temp[ptr++] = val;
+                }
+                val = 1 - val;
+            }
+
+            if (srcNX === NX && srcNY === NY) {
+                return temp;
+            }
+
+            // Nearest-neighbor upscaling if importing an older 360x180 design into the 720x360 HD tunnel
+            for (let y = 0; y < NY; y++) {
+                const sy = Math.min(srcNY - 1, Math.floor((y / NY) * srcNY));
+                for (let x = 0; x < NX; x++) {
+                    const sx = Math.min(srcNX - 1, Math.floor((x / NX) * srcNX));
+                    out[IX(x, y)] = temp[sy * srcNX + sx];
+                }
+            }
+            return out;
+        }
+
+        function initMobileObjectVault() {
+            const badge = document.getElementById('storage-status-badge');
+            if (!window.indexedDB) {
+                if (badge) badge.textContent = 'JSON Mode';
+                renderSavedDesignsList([]);
+                return;
+            }
+
+            try {
+                const request = window.indexedDB.open(VAULT_DB_NAME, 1);
+                request.onupgradeneeded = function (evt) {
+                    const db = evt.target.result;
+                    if (!db.objectStoreNames.contains(VAULT_STORE_NAME)) {
+                        db.createObjectStore(VAULT_STORE_NAME, { keyPath: 'id' });
+                    }
+                };
+                request.onsuccess = function (evt) {
+                    vaultDB = evt.target.result;
+                    if (badge) badge.textContent = 'Mobile DB Ready';
+                    refreshSavedDesignsList();
+                };
+                request.onerror = function () {
+                    if (badge) badge.textContent = 'Memory Vault';
+                    renderSavedDesignsList(memoryVaultFallback);
+                };
+            } catch (err) {
+                if (badge) badge.textContent = 'Memory Vault';
+                renderSavedDesignsList(memoryVaultFallback);
+            }
+        }
+
+        function refreshSavedDesignsList() {
+            if (!vaultDB) {
+                renderSavedDesignsList(memoryVaultFallback);
+                return;
+            }
+            try {
+                const tx = vaultDB.transaction([VAULT_STORE_NAME], 'readonly');
+                const store = tx.objectStore(VAULT_STORE_NAME);
+                const req = store.getAll();
+                req.onsuccess = function () {
+                    const items = req.result || [];
+                    items.sort((a, b) => b.createdAt - a.createdAt);
+                    renderSavedDesignsList(items);
+                };
+            } catch (e) {
+                renderSavedDesignsList(memoryVaultFallback);
+            }
+        }
+
+        function saveCurrentDesign() {
+            if (!hasSolidCells) {
+                const inputEl = document.getElementById('input-save-name');
+                inputEl.placeholder = 'Draw an object first!';
+                return;
+            }
+
+            const inputEl = document.getElementById('input-save-name');
+            const rawName = (inputEl.value || '').trim();
+            const designName = rawName || `Aero Object ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+
+            const record = {
+                id: 'aero_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
+                name: designName,
+                createdAt: Date.now(),
+                dateStr: new Date().toLocaleDateString([], { month: 'short', day: 'numeric' }),
+                cd: loopStats.cdMean || smoothCd || 0,
+                ld: loopStats.ldMean || 0,
+                payload: compressSolidGrid(solid)
+            };
+
+            inputEl.value = '';
+            inputEl.placeholder = 'Saved to device!';
+            setTimeout(() => {
+                inputEl.placeholder = 'Name vehicle or aero part...';
+            }, 1800);
+
+            if (!vaultDB) {
+                memoryVaultFallback.unshift(record);
+                renderSavedDesignsList(memoryVaultFallback);
+                return;
+            }
+
+            try {
+                const tx = vaultDB.transaction([VAULT_STORE_NAME], 'readwrite');
+                const store = tx.objectStore(VAULT_STORE_NAME);
+                store.put(record);
+                tx.oncomplete = function () {
+                    refreshSavedDesignsList();
+                };
+            } catch (e) {
+                memoryVaultFallback.unshift(record);
+                renderSavedDesignsList(memoryVaultFallback);
+            }
+        }
+
+        function loadSavedDesignById(id) {
+            const mergeMode = document.getElementById('chk-merge-import').checked;
+
+            function applyRecord(rec) {
+                if (!rec || !rec.payload) return;
+                pushUndoState();
+                const importedGrid = decompressSolidGrid(rec.payload);
+                if (mergeMode) {
+                    for (let i = 0; i < size; i++) {
+                        if (importedGrid[i]) {
+                            solid[i] = 1;
+                            u[i] = 0;
+                            v[i] = 0;
+                        }
+                    }
+                } else {
+                    solid.set(importedGrid);
+                }
+                rebuildSmoothBoundaryNormals();
+                resetFluidOnly();
+            }
+
+            if (!vaultDB) {
+                const found = memoryVaultFallback.find(item => item.id === id);
+                applyRecord(found);
+                return;
+            }
+
+            try {
+                const tx = vaultDB.transaction([VAULT_STORE_NAME], 'readonly');
+                const store = tx.objectStore(VAULT_STORE_NAME);
+                const req = store.get(id);
+                req.onsuccess = function () {
+                    applyRecord(req.result);
+                };
+            } catch (e) {
+                const found = memoryVaultFallback.find(item => item.id === id);
+                applyRecord(found);
+            }
+        }
+
+        function deleteSavedDesignById(id) {
+            if (!vaultDB) {
+                memoryVaultFallback = memoryVaultFallback.filter(item => item.id !== id);
+                renderSavedDesignsList(memoryVaultFallback);
+                return;
+            }
+            try {
+                const tx = vaultDB.transaction([VAULT_STORE_NAME], 'readwrite');
+                const store = tx.objectStore(VAULT_STORE_NAME);
+                store.delete(id);
+                tx.oncomplete = function () {
+                    refreshSavedDesignsList();
+                };
+            } catch (e) {
+                memoryVaultFallback = memoryVaultFallback.filter(item => item.id !== id);
+                renderSavedDesignsList(memoryVaultFallback);
+            }
+        }
+
+        function renderSavedDesignsList(items) {
+            const container = document.getElementById('saved-designs-list');
+            if (!container) return;
+
+            if (!items || items.length === 0) {
+                container.innerHTML = `<div class="text-[11px] text-slate-500 italic py-2 text-center">No custom objects saved yet</div>`;
+                return;
+            }
+
+            container.innerHTML = '';
+            items.forEach(item => {
+                const row = document.createElement('div');
+                row.className = 'flex items-center justify-between gap-1.5 bg-slate-950/90 border border-slate-800 hover:border-slate-700 rounded-lg px-2.5 py-1.5 transition';
+
+                const infoDiv = document.createElement('div');
+                infoDiv.className = 'min-w-0 flex-1';
+                const titleEl = document.createElement('div');
+                titleEl.className = 'text-xs font-semibold text-slate-200 truncate';
+                titleEl.textContent = item.name;
+
+                const metaEl = document.createElement('div');
+                metaEl.className = 'text-[10px] font-mono text-slate-400';
+                metaEl.textContent = `${item.dateStr || ''} • Cd ${(item.cd || 0).toFixed(2)} • L/D ${(item.ld || 0).toFixed(2)}`;
+
+                infoDiv.appendChild(titleEl);
+                infoDiv.appendChild(metaEl);
+
+                const btnGroup = document.createElement('div');
+                btnGroup.className = 'flex items-center gap-1 shrink-0';
+
+                const loadBtn = document.createElement('button');
+                loadBtn.className = 'px-2 py-1 rounded bg-sky-600/20 hover:bg-sky-600/40 text-sky-300 border border-sky-500/40 text-[11px] font-semibold transition';
+                loadBtn.textContent = 'Import';
+                loadBtn.onclick = () => loadSavedDesignById(item.id);
+
+                const delBtn = document.createElement('button');
+                delBtn.className = 'p-1 rounded bg-slate-800 hover:bg-rose-950/80 text-slate-400 hover:text-rose-300 border border-slate-700 text-[11px] transition';
+                delBtn.innerHTML = '<i class="ph-bold ph-trash"></i>';
+                delBtn.onclick = () => deleteSavedDesignById(item.id);
+
+                btnGroup.appendChild(loadBtn);
+                btnGroup.appendChild(delBtn);
+
+                row.appendChild(infoDiv);
+                row.appendChild(btnGroup);
+                container.appendChild(row);
+            });
+        }
+
+        // Export current object to a portable .aero.json file (great for phone storage backup or sharing)
+        function exportCurrentDesignFile() {
+            const inputEl = document.getElementById('input-save-name');
+            const rawName = (inputEl.value || '').trim() || 'aerolab_vehicle';
+            const safeSlug = rawName.toLowerCase().replace(/[^a-z0-9-_]+/g, '_');
+
+            const exportObj = {
+                app: 'AeroLab2D_HD',
+                version: 2,
+                name: rawName,
+                exportedAt: new Date().toISOString(),
+                windSpeedKmh: windSpeedKmh,
+                kinematicViscosity: kinematicViscosity,
+                metrics: {
+                    cd: loopStats.cdMean || smoothCd,
+                    ld: loopStats.ldMean || 0,
+                    dragN: loopStats.dragMean || smoothDragN,
+                    liftN: loopStats.liftMean || smoothLiftN
+                },
+                payload: compressSolidGrid(solid)
+            };
+
+            const blob = new Blob([JSON.stringify(exportObj)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${safeSlug}.aero.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function importDesignFile(evt) {
+            const file = evt.target.files && evt.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if (data && data.payload) {
+                        pushUndoState();
+                        const importedGrid = decompressSolidGrid(data.payload);
+                        const mergeMode = document.getElementById('chk-merge-import').checked;
+                        if (mergeMode) {
+                            for (let i = 0; i < size; i++) {
+                                if (importedGrid[i]) {
+                                    solid[i] = 1;
+                                    u[i] = 0;
+                                    v[i] = 0;
+                                }
+                            }
+                        } else {
+                            solid.set(importedGrid);
+                        }
+                        rebuildSmoothBoundaryNormals();
+                        resetFluidOnly();
+
+                        // Also save imported file into the local device library for quick future access
+                        const record = {
+                            id: 'aero_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
+                            name: data.name || file.name.replace(/\.aero\.json|\.json/i, ''),
+                            createdAt: Date.now(),
+                            dateStr: new Date().toLocaleDateString([], { month: 'short', day: 'numeric' }),
+                            cd: (data.metrics && data.metrics.cd) || 0,
+                            ld: (data.metrics && data.metrics.ld) || 0,
+                            payload: data.payload
+                        };
+
+                        if (vaultDB) {
+                            const tx = vaultDB.transaction([VAULT_STORE_NAME], 'readwrite');
+                            tx.objectStore(VAULT_STORE_NAME).put(record);
+                            tx.oncomplete = () => refreshSavedDesignsList();
+                        } else {
+                            memoryVaultFallback.unshift(record);
+                            renderSavedDesignsList(memoryVaultFallback);
+                        }
+                    }
+                } catch (err) {
+                    console.error('Failed to parse AeroLab JSON file:', err);
+                }
+                evt.target.value = '';
+            };
+            reader.readAsText(file);
+        }
+
+        // --- Save Undo State ---
+        function pushUndoState() {
+            undoStack.push(new Uint8Array(solid));
+            if (undoStack.length > MAX_UNDO) {
+                undoStack.shift();
+            }
+            document.getElementById('btn-undo').disabled = undoStack.length === 0;
+        }
+
+        function undoAction() {
+            if (undoStack.length > 0) {
+                const prev = undoStack.pop();
+                solid.set(prev);
+                rebuildSmoothBoundaryNormals();
+                restartGoldenWindowCapture();
+                document.getElementById('btn-undo').disabled = undoStack.length === 0;
+            }
+        }
+
+        /**
+         * Extracts the connected solid object near (startX, startY) so individual wings, wheels,
+         * or bodies can be rotated independently. If the user clicks empty air, rotates all objects.
+         */
+        function extractConnectedObject(startX, startY) {
+            const mask = new Uint8Array(size);
+            let seedIdx = -1;
+
+            // Search within small radius for nearest solid pixel
+            outer: for (let r = 0; r <= 8; r++) {
+                for (let dy = -r; dy <= r; dy++) {
+                    for (let dx = -r; dx <= r; dx++) {
+                        const gx = startX + dx;
+                        const gy = startY + dy;
+                        if (gx >= 0 && gx < NX && gy >= 0 && gy < NY) {
+                            const idx = IX(gx, gy);
+                            if (solid[idx]) {
+                                seedIdx = idx;
+                                break outer;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // If no object is under cursor, select ALL solid cells in the tunnel
+            if (seedIdx === -1) {
+                let sumX = 0, sumY = 0, count = 0;
+                for (let y = 0; y < NY; y++) {
+                    for (let x = 0; x < NX; x++) {
+                        const idx = IX(x, y);
+                        if (solid[idx]) {
+                            mask[idx] = 1;
+                            sumX += x;
+                            sumY += y;
+                            count++;
+                        }
+                    }
+                }
+                return {
+                    mask,
+                    pivotX: count > 0 ? sumX / count : NX * 0.5,
+                    pivotY: count > 0 ? sumY / count : NY * 0.5,
+                    hasPixels: count > 0
+                };
+            }
+
+            // Flood-fill (with 4-cell bridge tolerance at 2x resolution so close parts like wheel+fender or wing+pylon stay grouped)
+            const queue = [seedIdx];
+            mask[seedIdx] = 1;
+            let head = 0;
+            let sumX = 0, sumY = 0, count = 0;
+
+            while (head < queue.length) {
+                const curr = queue[head++];
+                const cx = curr % NX;
+                const cy = (curr / NX) | 0;
+                sumX += cx;
+                sumY += cy;
+                count++;
+
+                for (let dy = -3; dy <= 3; dy++) {
+                    for (let dx = -3; dx <= 3; dx++) {
+                        if (dx === 0 && dy === 0) continue;
+                        const nx = cx + dx;
+                        const ny = cy + dy;
+                        if (nx >= 1 && nx < NX - 1 && ny >= 1 && ny < NY - 1) {
+                            const nIdx = IX(nx, ny);
+                            if (solid[nIdx] && !mask[nIdx]) {
+                                mask[nIdx] = 1;
+                                queue.push(nIdx);
+                            }
+                        }
+                    }
+                }
+            }
+
+            return {
+                mask,
+                pivotX: count > 0 ? sumX / count : startX,
+                pivotY: count > 0 ? sumY / count : startY,
+                hasPixels: count > 0
+            };
+        }
+
+        // Rotate selected mask inside baseSolid by angleDeg around (pivotX, pivotY) using inverse-mapped supersampling
+        function applyRotationToGrid(baseSolid, mask, pivotX, pivotY, angleDeg) {
+            const rad = (angleDeg * Math.PI) / 180;
+            const cosA = Math.cos(rad);
+            const sinA = Math.sin(rad);
+
+            // Clear only the masked pixels from baseSolid first
+            for (let i = 0; i < size; i++) {
+                solid[i] = mask[i] ? 0 : baseSolid[i];
+            }
+
+            // Inverse-map destination pixels back to source mask with 2x2 sub-pixel anti-hole sampling
+            for (let y = 2; y < NY - 2; y++) {
+                for (let x = 4; x < NX - 4; x++) {
+                    let hits = 0;
+                    for (let sy = -0.25; sy <= 0.25; sy += 0.5) {
+                        for (let sx = -0.25; sx <= 0.25; sx += 0.5) {
+                            const dx = (x + sx) - pivotX;
+                            const dy = (y + sy) - pivotY;
+                            const srcX = Math.round(pivotX + dx * cosA + dy * sinA);
+                            const srcY = Math.round(pivotY - dx * sinA + dy * cosA);
+                            if (srcX >= 0 && srcX < NX && srcY >= 0 && srcY < NY) {
+                                const sIdx = IX(srcX, srcY);
+                                if (mask[sIdx] && baseSolid[sIdx]) hits++;
+                            }
+                        }
+                    }
+                    if (hits >= 2) {
+                        solid[IX(x, y)] = 1;
+                    }
+                }
+            }
+
+            rebuildSmoothBoundaryNormals();
+        }
+
+        // Slider-based Whole-Scene Rotation
+        function previewSceneRotation(degVal) {
+            const deg = parseFloat(degVal);
+            document.getElementById('val-scene-rot').textContent = `${deg > 0 ? '+' : ''}${deg}°`;
+
+            if (!rotBaseSolid) {
+                pushUndoState();
+                rotBaseSolid = new Uint8Array(solid);
+                const sel = extractConnectedObject(-1, -1); // Whole scene
+                rotSelectedMask = sel.mask;
+                rotPivotX = sel.pivotX;
+                rotPivotY = sel.pivotY;
+            }
+            rotCurrentDeg = deg;
+            applyRotationToGrid(rotBaseSolid, rotSelectedMask, rotPivotX, rotPivotY, deg);
+            restartGoldenWindowCapture();
+        }
+
+        function commitSceneRotation() {
+            rotBaseSolid = null;
+            rotSelectedMask = null;
+            rotCurrentDeg = 0;
+            document.getElementById('slider-scene-rot').value = 0;
+            document.getElementById('val-scene-rot').textContent = '0°';
+            restartGoldenWindowCapture();
+        }
+
+        function rotateWholeSceneBy(deltaDeg) {
+            pushUndoState();
+            const base = new Uint8Array(solid);
+            const sel = extractConnectedObject(-1, -1);
+            if (!sel.hasPixels) return;
+            applyRotationToGrid(base, sel.mask, sel.pivotX, sel.pivotY, deltaDeg);
+            restartGoldenWindowCapture();
+        }
+
+        // --- Sub-Grid Obstacle Smoothing & Smooth Tangential Surface Normals ---
+        // Computes a smoothed fractional obstacle field (solidFrac) and smooth 5x5 Sobel surface normals
+        function rebuildSmoothBoundaryNormals() {
+            let anySolid = false;
+
+            // 1. Compute 5x5 Gaussian-weighted fractional obstacle density (solidFrac)
+            for (let y = 1; y < NY - 1; y++) {
+                for (let x = 1; x < NX - 1; x++) {
+                    const idx = IX(x, y);
+                    if (solid[idx]) anySolid = true;
+
+                    let sum = 0;
+                    let wSum = 0;
+                    for (let dy = -2; dy <= 2; dy++) {
+                        const ny = Math.max(0, Math.min(NY - 1, y + dy));
+                        for (let dx = -2; dx <= 2; dx++) {
+                            const nx = Math.max(0, Math.min(NX - 1, x + dx));
+                            const w = 1.0 / (1.0 + dx * dx + dy * dy);
+                            sum += solid[IX(nx, ny)] * w;
+                            wSum += w;
+                        }
+                    }
+                    solidFrac[idx] = sum / wSum;
+                }
+            }
+            hasSolidCells = anySolid;
+
+            // 2. Compute smooth outward-pointing surface unit normals (pointing from solid -> fluid air)
+            for (let y = 2; y < NY - 2; y++) {
+                for (let x = 2; x < NX - 2; x++) {
+                    const idx = IX(x, y);
+                    // Negative gradient of solidFrac points outward into the fluid
+                    const gx = -(
+                        (solidFrac[IX(x + 1, y - 1)] - solidFrac[IX(x - 1, y - 1)]) +
+                        2.0 * (solidFrac[IX(x + 1, y)] - solidFrac[IX(x - 1, y)]) +
+                        (solidFrac[IX(x + 1, y + 1)] - solidFrac[IX(x - 1, y + 1)])
+                    );
+                    const gy = -(
+                        (solidFrac[IX(x - 1, y + 1)] - solidFrac[IX(x - 1, y - 1)]) +
+                        2.0 * (solidFrac[IX(x, y + 1)] - solidFrac[IX(x, y - 1)]) +
+                        (solidFrac[IX(x + 1, y + 1)] - solidFrac[IX(x + 1, y - 1)])
+                    );
+                    const len = Math.hypot(gx, gy);
+                    if (len > 1e-4) {
+                        normX[idx] = gx / len;
+                        normY[idx] = gy / len;
+                    } else {
+                        normX[idx] = 0;
+                        normY[idx] = 0;
+                    }
+                }
+            }
+        }
+
+        // Morphological Cellular Automata Hull Polisher ("Smooth" Button)
+        function smoothHullAction() {
+            pushUndoState();
+            const nextSolid = new Uint8Array(solid);
+            for (let y = 2; y < NY - 2; y++) {
+                for (let x = 4; x < NX - 4; x++) {
+                    const idx = IX(x, y);
+                    let neighbors = 0;
+                    for (let dy = -1; dy <= 1; dy++) {
+                        for (let dx = -1; dx <= 1; dx++) {
+                            if (dx === 0 && dy === 0) continue;
+                            if (solid[IX(x + dx, y + dy)]) neighbors++;
+                        }
+                    }
+                    if (solid[idx] && neighbors <= 2) nextSolid[idx] = 0;
+                    else if (!solid[idx] && neighbors >= 6) nextSolid[idx] = 1;
+                }
+            }
+            solid.set(nextSolid);
+            rebuildSmoothBoundaryNormals();
+            restartGoldenWindowCapture();
+        }
+
+        function sampleVelocityBilinear(px, py) {
+            const x0 = Math.max(0, Math.min(NX - 2, Math.floor(px)));
+            const y0 = Math.max(0, Math.min(NY - 2, Math.floor(py)));
+            const x1 = x0 + 1;
+            const y1 = y0 + 1;
+            const sx = px - x0;
+            const sy = py - y0;
+
+            const i00 = IX(x0, y0);
+            const i10 = IX(x1, y0);
+            const i01 = IX(x0, y1);
+            const i11 = IX(x1, y1);
+
+            const uVal = (1 - sx) * (1 - sy) * u[i00] + sx * (1 - sy) * u[i10] + (1 - sx) * sy * u[i01] + sx * sy * u[i11];
+            const vVal = (1 - sx) * (1 - sy) * v[i00] + sx * (1 - sy) * v[i10] + (1 - sx) * sy * v[i01] + sx * sy * v[i11];
+            return { u: uVal, v: vVal };
+        }
+
+        function advectParticlesOnly() {
+            const pSpeedScale = 2.15 * RES_SCALE;
+            for (let i = 0; i < MAX_PARTICLES; i++) {
+                let px = particlesX[i];
+                let py = particlesY[i];
+                particlesAge[i]++;
+
+                if (px >= NX - 6 || px < 1 || py < 1 || py >= NY - 3 || particlesAge[i] > 480 || solid[IX(px | 0, py | 0)]) {
+                    respawnParticle(i, false);
+                    continue;
+                }
+
+                const vel = sampleVelocityBilinear(px, py);
+                px += pSpeedScale * vel.u;
+                py += pSpeedScale * vel.v;
+
+                const nIdx = IX(px | 0, py | 0);
+                if (solid[nIdx]) {
+                    px += normX[nIdx] * (1.25 * RES_SCALE);
+                    py += normY[nIdx] * (1.25 * RES_SCALE);
+                }
+                particlesX[i] = px;
+                particlesY[i] = py;
+            }
+        }
+
+        function stepFluidPhysics() {
+            const dt = 0.42;
+            const advectScale = 2.2 * RES_SCALE;
+            const spongeWidth = Math.round(22 * RES_SCALE);
+
+            // 1. Enforce Wind Tunnel Boundary Conditions
+            for (let y = 0; y < NY; y++) {
+                u[IX(0, y)] = uInlet;
+                u[IX(1, y)] = uInlet;
+                v[IX(0, y)] = 0;
+                v[IX(1, y)] = 0;
+
+                // Non-reflecting zero-gradient outflow on right boundary
+                u[IX(NX - 1, y)] = Math.max(0.05, u[IX(NX - 2, y)]);
+                v[IX(NX - 1, y)] = v[IX(NX - 2, y)];
+            }
+
+            // Right-hand Outlet Sponge Layer (prevents wake vortex reflections)
+            for (let y = 1; y < NY - 1; y++) {
+                for (let x = NX - spongeWidth; x < NX - 1; x++) {
+                    const idx = IX(x, y);
+                    if (solid[idx]) continue;
+                    const spongeT = (x - (NX - spongeWidth)) / spongeWidth;
+                    const relax = spongeT * spongeT * 0.18;
+                    u[idx] = u[idx] * (1.0 - relax) + uInlet * relax;
+                    v[idx] = v[idx] * (1.0 - relax);
+                }
+            }
+
+            const groundSpeed = movingGround ? uInlet : 0.0;
+            for (let x = 0; x < NX; x++) {
+                // Free-slip top ceiling
+                u[IX(x, 0)] = u[IX(x, 1)];
+                v[IX(x, 0)] = 0;
+                // Moving belt road or stationary floor
+                u[IX(x, NY - 1)] = groundSpeed;
+                u[IX(x, NY - 2)] = movingGround ? (u[IX(x, NY - 2)] * 0.35 + groundSpeed * 0.65) : u[IX(x, NY - 2)] * 0.5;
+                v[IX(x, NY - 1)] = 0;
+            }
+
+            // 2. Compute Vorticity (Curl) & Apply Controlled Wake Vorticity Confinement
+            for (let y = 1; y < NY - 1; y++) {
+                for (let x = 1; x < NX - 1; x++) {
+                    const idx = IX(x, y);
+                    if (solid[idx]) {
+                        curl[idx] = 0;
+                        continue;
+                    }
+                    const dvdx = (v[IX(x + 1, y)] - v[IX(x - 1, y)]) * 0.5;
+                    const dudy = (u[IX(x, y + 1)] - u[IX(x, y - 1)]) * 0.5;
+                    curl[idx] = dvdx - dudy;
+                }
+            }
+
+            if (vorticityStrength > 0.01) {
+                const eps = vorticityStrength * 0.075;
+                for (let y = 2; y < NY - 2; y++) {
+                    for (let x = 2; x < NX - spongeWidth; x++) {
+                        const idx = IX(x, y);
+                        // Suppress synthetic curl injection inside the attached boundary layer near solid walls
+                        if (solid[idx] || solidFrac[idx] > 0.03) continue;
+
+                        const absC_right = Math.abs(curl[IX(x + 1, y)]);
+                        const absC_left  = Math.abs(curl[IX(x - 1, y)]);
+                        const absC_down  = Math.abs(curl[IX(x, y + 1)]);
+                        const absC_up    = Math.abs(curl[IX(x, y - 1)]);
+
+                        let dx = (absC_right - absC_left) * 0.5;
+                        let dy = (absC_down - absC_up) * 0.5;
+                        const len = Math.hypot(dx, dy) + 1e-5;
+                        dx /= len;
+                        dy /= len;
+
+                        const c = curl[idx];
+                        u[idx] += dt * eps * (dy * c);
+                        v[idx] += dt * eps * (-dx * c);
+                    }
+                }
+            }
+
+            // 3. Semi-Lagrangian Advection (Excluding solid cells from bilinear weights so boundary layers never stall)
+            uPrev.set(u);
+            vPrev.set(v);
+
+            for (let y = 1; y < NY - 1; y++) {
+                for (let x = 2; x < NX - 1; x++) {
+                    const idx = IX(x, y);
+                    if (solid[idx]) {
+                        u[idx] = 0;
+                        v[idx] = 0;
+                        continue;
+                    }
+
+                    let bx = x - dt * uPrev[idx] * advectScale;
+                    let by = y - dt * vPrev[idx] * advectScale;
+                    bx = Math.max(1.0, Math.min(NX - 2.001, bx));
+                    by = Math.max(1.0, Math.min(NY - 2.001, by));
+
+                    const x0 = bx | 0;
+                    const y0 = by | 0;
+                    const sx = bx - x0;
+                    const sy = by - y0;
+
+                    const i00 = IX(x0, y0);
+                    const i10 = i00 + 1;
+                    const i01 = i00 + NX;
+                    const i11 = i01 + 1;
+
+                    const w00 = solid[i00] ? 0 : (1 - sx) * (1 - sy);
+                    const w10 = solid[i10] ? 0 : sx * (1 - sy);
+                    const w01 = solid[i01] ? 0 : (1 - sx) * sy;
+                    const w11 = solid[i11] ? 0 : sx * sy;
+                    const wSum = w00 + w10 + w01 + w11;
+
+                    if (wSum > 1e-4) {
+                        u[idx] = (w00 * uPrev[i00] + w10 * uPrev[i10] + w01 * uPrev[i01] + w11 * uPrev[i11]) / wSum;
+                        v[idx] = (w00 * vPrev[i00] + w10 * vPrev[i10] + w01 * vPrev[i01] + w11 * vPrev[i11]) / wSum;
+                    } else {
+                        u[idx] = uPrev[idx];
+                        v[idx] = vPrev[idx];
+                    }
+                }
+            }
+
+            // 4. Kinematic Viscosity Diffusion Step
+            if (kinematicViscosity > 0.001) {
+                const alpha = kinematicViscosity * 0.65;
+                const invDenom = 1.0 / (1.0 + 4.0 * alpha);
+                uPrev.set(u);
+                vPrev.set(v);
+                for (let y = 1; y < NY - 1; y++) {
+                    for (let x = 2; x < NX - 1; x++) {
+                        const idx = IX(x, y);
+                        if (solid[idx]) continue;
+
+                        const uc = uPrev[idx];
+                        const vc = vPrev[idx];
+
+                        const iL = idx - 1, iR = idx + 1, iU = idx - NX, iD = idx + NX;
+                        const uL = solid[iL] ? uc : uPrev[iL];
+                        const uR = solid[iR] ? uc : uPrev[iR];
+                        const uU = solid[iU] ? uc : uPrev[iU];
+                        const uD = solid[iD] ? uc : uPrev[iD];
+
+                        const vL = solid[iL] ? vc : vPrev[iL];
+                        const vR = solid[iR] ? vc : vPrev[iR];
+                        const vU = solid[iU] ? vc : vPrev[iU];
+                        const vD = solid[iD] ? vc : vPrev[iD];
+
+                        u[idx] = (uc + alpha * (uL + uR + uU + uD)) * invDenom;
+                        v[idx] = (vc + alpha * (vL + vR + vU + vD)) * invDenom;
+                    }
+                }
+            }
+
+            // 5. Divergence & Incompressible Gauss-Seidel SOR Pressure-Poisson Projection
+            for (let y = 1; y < NY - 1; y++) {
+                for (let x = 1; x < NX - 1; x++) {
+                    const idx = IX(x, y);
+                    if (solid[idx]) {
+                        div[idx] = 0;
+                        p[idx] = 0;
+                        continue;
+                    }
+                    const uR = solid[idx + 1] ? 0 : u[idx + 1];
+                    const uL = solid[idx - 1] ? 0 : u[idx - 1];
+                    const vD = solid[idx + NX] ? 0 : v[idx + NX];
+                    const vU = solid[idx - NX] ? 0 : v[idx - NX];
+
+                    div[idx] = -0.5 * (uR - uL + vD - vU);
+                    p[idx] *= 0.88; // Warm-start pressure field for rapid convergence on 720x360 grid
+                }
+            }
+
+            const SOR_ITERS = 24;
+            const omega = 1.72;
+            for (let iter = 0; iter < SOR_ITERS; iter++) {
+                for (let y = 1; y < NY - 1; y++) {
+                    for (let x = 1; x < NX - 1; x++) {
+                        const idx = IX(x, y);
+                        if (solid[idx]) continue;
+
+                        const pCenter = p[idx];
+                        const pL = solid[idx - 1] ? pCenter : p[idx - 1];
+                        const pR = solid[idx + 1] ? pCenter : p[idx + 1];
+                        const pU = solid[idx - NX] ? pCenter : p[idx - NX];
+                        const pD = solid[idx + NX] ? pCenter : p[idx + NX];
+
+                        const pNew = (div[idx] + pL + pR + pU + pD) * 0.25;
+                        p[idx] = pCenter + omega * (pNew - pCenter);
+                    }
+                }
+            }
+
+            // 6. Subtract Pressure Gradient & Enforce Post-Projection Coandă Tangential Boundary Alignment
+            for (let y = 1; y < NY - 1; y++) {
+                for (let x = 1; x < NX - 1; x++) {
+                    const idx = IX(x, y);
+                    if (solid[idx]) {
+                        u[idx] = 0;
+                        v[idx] = 0;
+                        continue;
+                    }
+
+                    const pCenter = p[idx];
+                    const pL = solid[idx - 1] ? pCenter : p[idx - 1];
+                    const pR = solid[idx + 1] ? pCenter : p[idx + 1];
+                    const pU = solid[idx - NX] ? pCenter : p[idx - NX];
+                    const pD = solid[idx + NX] ? pCenter : p[idx + NX];
+
+                    u[idx] -= 0.5 * (pR - pL);
+                    v[idx] -= 0.5 * (pD - pU);
+
+                    // Coandă Tangential Slip Alignment along smooth SDF surface normals
+                    if (solidFrac[idx] > 0.02) {
+                        const nx = normX[idx];
+                        const ny = normY[idx];
+                        const vDotN = u[idx] * nx + v[idx] * ny;
+                        if (vDotN < 0) {
+                            const speedBefore = Math.hypot(u[idx], v[idx]);
+                            u[idx] -= vDotN * nx;
+                            v[idx] -= vDotN * ny;
+                            const speedAfter = Math.hypot(u[idx], v[idx]);
+                            if (speedAfter > 1e-4) {
+                                const restore = (speedBefore * 0.88 + speedAfter * 0.12) / speedAfter;
+                                u[idx] *= restore;
+                                v[idx] *= restore;
+                            }
+                        }
+                    }
+
+                    // Clamp extreme velocities for numerical stability
+                    const maxVel = uInlet * 2.45;
+                    const mag = Math.hypot(u[idx], v[idx]);
+                    if (mag > maxVel) {
+                        const s = maxVel / mag;
+                        u[idx] *= s;
+                        v[idx] *= s;
+                    }
+                }
+            }
+
+            // 7. Advect Smoke Tracer Particles
+            advectParticlesOnly();
+        }
+
+        function computeAerodynamicForces() {
+            const vReal = windSpeedKmh / 3.6;
+            const dynPressurePa = 0.5 * AIR_DENSITY * vReal * vReal;
+            const pScale = dynPressurePa / Math.max(0.01, 0.5 * uInlet * uInlet);
+
+            let sumDragN = 0;
+            let sumLiftN = 0;
+            let peakP = 0;
+            let weightedX = 0;
+            let weightedY = 0;
+            let totalWeight = 0;
+
+            let minSolidY = NY;
+            let maxSolidY = 0;
+            let solidCount = 0;
+
+            boundaryVectors = [];
+
+            for (let y = 2; y < NY - 2; y++) {
+                let rowHasSolid = false;
+                for (let x = 4; x < NX - 4; x++) {
+                    const idx = IX(x, y);
+                    if (!solid[idx]) continue;
+
+                    solidCount++;
+                    rowHasSolid = true;
+
+                    const fRight = !solid[idx + 1];
+                    const fLeft  = !solid[idx - 1];
+                    const fDown  = !solid[idx + NX];
+                    const fUp    = !solid[idx - NX];
+
+                    if (fRight || fLeft || fDown || fUp) {
+                        let pFluidSum = 0;
+                        let uFluidSum = 0;
+                        let fluidNeighbors = 0;
+
+                        if (fLeft)  { pFluidSum += p[idx - 1];  uFluidSum += u[idx - 1];  fluidNeighbors++; }
+                        if (fRight) { pFluidSum += p[idx + 1];  uFluidSum += u[idx + 1];  fluidNeighbors++; }
+                        if (fUp)    { pFluidSum += p[idx - NX]; uFluidSum += u[idx - NX]; fluidNeighbors++; }
+                        if (fDown)  { pFluidSum += p[idx + NX]; uFluidSum += u[idx + NX]; fluidNeighbors++; }
+
+                        const pLocal = pFluidSum / fluidNeighbors;
+                        const uLocal = uFluidSum / fluidNeighbors;
+
+                        let nx = normX[idx];
+                        let ny = normY[idx];
+                        if (nx === 0 && ny === 0) {
+                            nx = (fRight ? 1 : 0) - (fLeft ? 1 : 0);
+                            ny = (fDown ? 1 : 0) - (fUp ? 1 : 0);
+                            const nl = Math.hypot(nx, ny) || 1;
+                            nx /= nl;
+                            ny /= nl;
+                        }
+
+                        const cp = (pLocal / (0.5 * uInlet * uInlet)) * 0.62;
+                        const localPa = cp * dynPressurePa;
+                        if (localPa > peakP) peakP = localPa;
+
+                        const cellAreaM2 = CELL_SIZE_M * VEHICLE_DEPTH_M;
+
+                        // Pressure force acts inward on the body (-n)
+                        const dFx = -localPa * nx * cellAreaM2;
+                        // Screen +Y is DOWN, so upward aerodynamic lift is +localPa * ny
+                        const dFyUp = localPa * ny * cellAreaM2;
+
+                        // Viscous skin friction drag contribution
+                        const skinCf = 0.008 + kinematicViscosity * 0.06;
+                        const shearDrag = skinCf * dynPressurePa * Math.abs(uLocal / uInlet) * cellAreaM2 * Math.abs(ny);
+
+                        sumDragN += dFx + shearDrag;
+                        sumLiftN += dFyUp;
+
+                        const fMag = Math.hypot(dFx, dFyUp);
+                        weightedX += x * fMag;
+                        weightedY += y * fMag;
+                        totalWeight += fMag;
+
+                        if ((x + y) % 6 === 0) {
+                            boundaryVectors.push({ x, y, nx, ny, cp });
+                        }
+                    }
+                }
+                if (rowHasSolid) {
+                    if (y < minSolidY) minSolidY = y;
+                    if (y > maxSolidY) maxSolidY = y;
+                }
+            }
+
+            hasSolidCells = solidCount > 0;
+
+            if (!hasSolidCells) {
+                smoothDragN = 0;
+                smoothLiftN = 0;
+                smoothCd = 0;
+                smoothCl = 0;
+                frontalAreaM2 = 0;
+                maxPressurePa = 0;
+            } else {
+                const heightM = Math.max(CELL_SIZE_M * 2, (maxSolidY - minSolidY + 1) * CELL_SIZE_M);
+                frontalAreaM2 = heightM * VEHICLE_DEPTH_M;
+
+                const instDrag = Math.max(5, sumDragN);
+                const instLift = sumLiftN;
+
+                smoothDragN = smoothDragN * 0.88 + instDrag * 0.12;
+                smoothLiftN = smoothLiftN * 0.88 + instLift * 0.12;
+
+                const denom = Math.max(1.0, dynPressurePa * frontalAreaM2);
+                smoothCd = Math.min(2.50, Math.max(0.05, smoothDragN / denom));
+                smoothCl = Math.max(-3.50, Math.min(3.50, smoothLiftN / denom));
+                maxPressurePa = Math.round(peakP);
+
+                if (totalWeight > 1e-3) {
+                    copX = copX * 0.85 + (weightedX / totalWeight) * 0.15;
+                    copY = copY * 0.85 + (weightedY / totalWeight) * 0.15;
+                }
+            }
+
+            dragHistory.push(smoothDragN);
+            dragHistory.shift();
+            liftHistory.push(smoothLiftN);
+            liftHistory.shift();
+
+            updateTelemetryDOM();
+        }
+
+        function updateTelemetryDOM() {
+            // Compute average and standard deviation over the 3s-4s loop window (or rolling warmup window)
+            loopStats = computeLoopWindowStatistics(recordedFrames.length >= 2 ? recordedFrames : null);
+            const windowTag = loopStats.isLockedWindow ? '3s–4s loop' : 'warming';
+
+            const meanDrag = loopStats.dragMean;
+            const stdDrag = loopStats.dragStd;
+            const meanLift = loopStats.liftMean;
+            const stdLift = loopStats.liftStd;
+            const meanCd = loopStats.cdMean;
+            const stdCd = loopStats.cdStd;
+            const meanCl = loopStats.clMean;
+            const stdCl = loopStats.clStd;
+            const meanLd = loopStats.ldMean;
+            const stdLd = loopStats.ldStd;
+            const meanMaxP = Math.round(loopStats.maxPMean);
+
+            document.getElementById('tele-drag').innerHTML = `${Math.round(meanDrag).toLocaleString()} <span class="text-xs font-normal text-slate-400">N</span> <span class="text-xs font-mono font-normal text-rose-300/90">±${stdDrag.toFixed(1)}</span>`;
+            document.getElementById('std-drag').textContent = `σ = ±${stdDrag.toFixed(1)} N (${windowTag})`;
+
+            const vReal = windSpeedKmh / 3.6;
+            const powerKw = (meanDrag * vReal) / 1000;
+            const powerStdKw = (stdDrag * vReal) / 1000;
+            document.getElementById('tele-power').textContent = `${powerKw.toFixed(1)} ±${powerStdKw.toFixed(1)} kW`;
+
+            const liftRounded = Math.round(meanLift);
+            const liftDirEl = document.getElementById('badge-lift-dir');
+            if (meanLift < -5) {
+                liftDirEl.textContent = 'DOWNFORCE';
+                liftDirEl.className = 'text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-700/40';
+            } else if (meanLift > 5) {
+                liftDirEl.textContent = 'LIFT (UP)';
+                liftDirEl.className = 'text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-950 text-amber-400 border border-amber-700/40';
+            } else {
+                liftDirEl.textContent = 'NEUTRAL';
+                liftDirEl.className = 'text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700';
+            }
+
+            document.getElementById('tele-lift').innerHTML = `${liftRounded > 0 ? '+' : ''}${liftRounded.toLocaleString()} <span class="text-xs font-normal text-slate-400">N</span> <span class="text-xs font-mono font-normal text-sky-300/90">±${stdLift.toFixed(1)}</span>`;
+            document.getElementById('std-lift').textContent = `σ = ±${stdLift.toFixed(1)} N (${windowTag})`;
+
+            const kgf = Math.round(meanLift / 9.81);
+            const kgfStd = (stdLift / 9.81).toFixed(1);
+            document.getElementById('tele-lift-kg').textContent = `${kgf > 0 ? '+' : ''}${kgf} ±${kgfStd} kgf`;
+
+            document.getElementById('tele-cd').innerHTML = `${meanCd.toFixed(2)} <span class="text-xs font-mono font-normal text-amber-300/90">±${stdCd.toFixed(3)}</span>`;
+            document.getElementById('std-cd').textContent = `σ = ±${stdCd.toFixed(3)} (${windowTag})`;
+            document.getElementById('tele-cl').textContent = `${meanCl >= 0 ? '+' : ''}${meanCl.toFixed(2)} ±${stdCl.toFixed(2)}`;
+            document.getElementById('tele-area').textContent = `${frontalAreaM2.toFixed(2)} m²`;
+
+            document.getElementById('tele-ld').innerHTML = `${meanLd >= 0 ? '+' : ''}${meanLd.toFixed(2)} <span class="text-xs font-mono font-normal text-sky-300/90">±${stdLd.toFixed(3)}</span>`;
+            document.getElementById('std-ld').textContent = `σ = ±${stdLd.toFixed(3)} (${windowTag})`;
+            document.getElementById('tele-maxp').textContent = `+${meanMaxP.toLocaleString()} ±${Math.round(loopStats.maxPStd)} Pa`;
+
+            if (baselineLocked) {
+                const dDrag = Math.round(meanDrag - baseDragN);
+                const dLift = Math.round(meanLift - baseLiftN);
+                const dLd = meanLd - baseLd;
+                const dragColor = dDrag <= 0 ? 'text-emerald-400' : 'text-rose-400';
+                const dragSign = dDrag > 0 ? '+' : '';
+                const latestLabel = baselinePanes.length > 0 ? `Baseline #${baselinePanes[0].id}` : 'Baseline';
+                document.getElementById('delta-drag').innerHTML = `<span class="${dragColor} font-semibold">${dragSign}${dDrag} N</span> vs ${latestLabel} (${Math.round(baseDragN)} N)`;
+
+                const liftSign = dLift > 0 ? '+' : '';
+                const liftColor = dLift <= 0 ? 'text-emerald-400' : 'text-amber-400';
+                document.getElementById('delta-lift').innerHTML = `<span class="${liftColor} font-semibold">${liftSign}${dLift} N</span> vs ${latestLabel} (${Math.round(baseLiftN)} N)`;
+
+                const ldSign = dLd > 0 ? '+' : '';
+                document.getElementById('delta-ld').innerHTML = `Δ Avg L/D: <span class="text-sky-300 font-semibold">${ldSign}${dLd.toFixed(2)}</span> vs ${latestLabel}`;
+            }
+
+            updateBaselinePaneDeltasDOM();
+        }
+
+        // --- Multi-Pane Baseline Creation & Management ---
+        function lockBaseline() {
+            // Ensure the current simulation has captured its 3.0s-4.0s loop frames!
+            // If the user clicks "New Baseline Pane" before 4.0s is reached, fast-complete the 3.0s-4.0s capture immediately
+            if (recordedFrames.length < 6) {
+                const maxFastSteps = 130;
+                let steps = 0;
+                while (simElapsedSec <= LOOP_END_SEC && steps < maxFastSteps) {
+                    stepFluidPhysics();
+                    computeAerodynamicForces();
+                    simElapsedSec += SIM_DT_SEC;
+                    if (simElapsedSec >= LOOP_START_SEC && simElapsedSec <= LOOP_END_SEC) {
+                        captureGoldenFrame();
+                    }
+                    steps++;
+                }
+                if (goldenLoopEnabled && recordedFrames.length >= 2) {
+                    isPlayingGoldenLoop = true;
+                    loopPlayCursor = recordedFrames.length - 1;
+                    loopPlayDir = -1;
+                }
+                updateLoopBadgeDOM();
+            }
+
+            // Deep-clone recorded 3s-4s frames for the independent baseline loop player
+            const clonedFrames = recordedFrames.map(f => ({
+                u: new Float32Array(f.u),
+                v: new Float32Array(f.v),
+                p: new Float32Array(f.p),
+                curl: new Float32Array(f.curl),
+                dragN: f.dragN,
+                liftN: f.liftN,
+                cd: f.cd,
+                cl: f.cl,
+                maxP: f.maxP,
+                copX: f.copX,
+                copY: f.copY,
+                vectors: f.vectors.slice()
+            }));
+
+            // Compute exact 3s-4s loop statistics (Mean & Standard Deviation) for this locked baseline
+            const bStats = computeLoopWindowStatistics(clonedFrames);
+            const vReal = windSpeedKmh / 3.6;
+            const powerKw = (bStats.dragMean * vReal) / 1000;
+            const powerStdKw = (bStats.dragStd * vReal) / 1000;
+            const kgf = Math.round(bStats.liftMean / 9.81);
+            const kgfStd = (bStats.liftStd / 9.81).toFixed(1);
+
+            const bId = nextBaselineId++;
+            const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+            // Create dedicated offscreen image buffer and particle set for this baseline pane
+            const paneOffCanvas = document.createElement('canvas');
+            paneOffCanvas.width = NX;
+            paneOffCanvas.height = NY;
+            const paneOffCtx = paneOffCanvas.getContext('2d');
+            const paneImgData = paneOffCtx.createImageData(NX, NY);
+
+            const BP_PARTICLES = 2400;
+            const bpX = new Float32Array(BP_PARTICLES);
+            const bpY = new Float32Array(BP_PARTICLES);
+            const bpAge = new Int32Array(BP_PARTICLES);
+            for (let i = 0; i < BP_PARTICLES; i++) {
+                bpX[i] = Math.random() * (NX - 10) + 5;
+                const nozzleIdx = i % numSmokeLines;
+                const marginY = Math.round(14 * RES_SCALE);
+                const usableHeight = NY - marginY * 2;
+                bpY[i] = marginY + (nozzleIdx / Math.max(1, numSmokeLines - 1)) * usableHeight + (Math.random() - 0.5) * 0.7;
+                bpAge[i] = Math.floor(Math.random() * 260);
+            }
+
+            const newPane = {
+                id: bId,
+                timestamp,
+                solid: new Uint8Array(solid),
+                solidFrac: new Float32Array(solidFrac),
+                normX: new Float32Array(normX),
+                normY: new Float32Array(normY),
+                uWork: new Float32Array(u),
+                vWork: new Float32Array(v),
+                pWork: new Float32Array(p),
+                curlWork: new Float32Array(curl),
+                frames: clonedFrames,
+                cursor: 0,
+                dir: 1,
+                numParticles: BP_PARTICLES,
+                px: bpX,
+                py: bpY,
+                page: bpAge,
+                numSmokeLines: numSmokeLines,
+                windSpeedKmh: windSpeedKmh,
+                uInlet: uInlet,
+                kinematicViscosity: kinematicViscosity,
+                movingGround: movingGround,
+                hasSolidCells: hasSolidCells,
+                // Frozen 3s-4s Loop Mean & Standard Deviation Telemetry Summary
+                metrics: {
+                    dragN: bStats.dragMean,
+                    dragStd: bStats.dragStd,
+                    liftN: bStats.liftMean,
+                    liftStd: bStats.liftStd,
+                    powerKw: powerKw,
+                    powerStdKw: powerStdKw,
+                    kgf: kgf,
+                    kgfStd: kgfStd,
+                    cd: bStats.cdMean,
+                    cdStd: bStats.cdStd,
+                    cl: bStats.clMean,
+                    clStd: bStats.clStd,
+                    areaM2: frontalAreaM2,
+                    ld: bStats.ldMean,
+                    ldStd: bStats.ldStd,
+                    maxP: Math.round(bStats.maxPMean),
+                    maxPStd: Math.round(bStats.maxPStd)
+                },
+                offCanvas: paneOffCanvas,
+                offCtx: paneOffCtx,
+                imgData: paneImgData,
+                canvasEl: null
+            };
+
+            // Add newest baseline pane to the top of the comparison stack
+            baselinePanes.unshift(newPane);
+
+            // Set active reference baseline to this newly created baseline's loop mean
+            baselineLocked = true;
+            baseDragN = bStats.dragMean;
+            baseLiftN = bStats.liftMean;
+            baseCd = bStats.cdMean;
+            baseLd = bStats.ldMean;
+
+            document.getElementById('btn-clear-baseline').classList.remove('hidden');
+            rebuildBaselinePanesDOM();
+            updateTelemetryDOM();
+        }
+
+        function rebuildBaselinePanesDOM() {
+            const section = document.getElementById('baseline-panes-section');
+            const listEl = document.getElementById('baseline-panes-list');
+            const countBadge = document.getElementById('baseline-count-badge');
+
+            countBadge.textContent = baselinePanes.length;
+
+            if (baselinePanes.length === 0) {
+                section.classList.add('hidden');
+                section.classList.remove('flex');
+                listEl.innerHTML = '';
+                return;
+            }
+
+            section.classList.remove('hidden');
+            section.classList.add('flex');
+            listEl.innerHTML = '';
+
+            baselinePanes.forEach((bp, idx) => {
+                const m = bp.metrics;
+                const dragRounded = Math.round(m.dragN);
+                const liftRounded = Math.round(m.liftN);
+
+                let liftBadgeText = 'NEUTRAL';
+                let liftBadgeClass = 'bg-slate-800 text-slate-400 border-slate-700';
+                if (liftRounded < -5) {
+                    liftBadgeText = 'DOWNFORCE';
+                    liftBadgeClass = 'bg-emerald-950 text-emerald-400 border-emerald-700/40';
+                } else if (liftRounded > 5) {
+                    liftBadgeText = 'LIFT (UP)';
+                    liftBadgeClass = 'bg-amber-950 text-amber-400 border-amber-700/40';
+                }
+
+                const card = document.createElement('div');
+                card.className = 'bg-slate-900/95 border border-amber-500/30 rounded-xl p-3 shadow-2xl flex flex-col gap-3';
+                card.innerHTML = `
+                    <!-- Baseline Pane Header -->
+                    <div class="flex flex-wrap items-center justify-between gap-2 px-2.5 py-1.5 bg-slate-950/90 rounded-lg border border-slate-800 text-xs">
+                        <div class="flex items-center gap-2.5 flex-wrap">
+                            <span class="px-2 py-0.5 rounded bg-amber-500/20 border border-amber-500/40 text-amber-300 font-bold font-mono text-[11px]">
+                                BASELINE #${bp.id}
+                            </span>
+                            <span class="text-slate-400 font-mono text-[11px]">Captured at ${bp.timestamp}</span>
+                            <span class="font-mono text-[11px] text-emerald-300 bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-700/40 flex items-center gap-1">
+                                <i class="ph-bold ph-repeat"></i> <span id="bp-time-${bp.id}">3s–4s Loop (t = 3.00s)</span>
+                            </span>
+                            <span class="font-mono text-[11px] text-sky-300 bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
+                                V∞ = ${bp.windSpeedKmh} km/h | ν = ${bp.kinematicViscosity.toFixed(3)}
+                            </span>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <button onclick="restoreBaselineToActive(${bp.id})" class="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-sky-950/90 hover:bg-sky-800 text-sky-300 border border-sky-600/50 transition flex items-center gap-1" title="Copy this baseline geometry back into the Active Modification Editor above">
+                                <i class="ph-bold ph-arrow-Elbow-Left-Up"></i> Load into Active Editor
+                            </button>
+                            <button onclick="deleteBaselinePane(${bp.id})" class="px-2 py-1 rounded-lg text-[11px] font-medium bg-rose-950/60 hover:bg-rose-900/80 text-rose-300 border border-rose-800/50 transition flex items-center gap-1" title="Remove this Baseline Pane">
+                                <i class="ph-bold ph-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Baseline Live Looping Wind Tunnel Canvas -->
+                    <div class="relative w-full aspect-[2.2/1] bg-slate-950 rounded-lg overflow-hidden border border-slate-800 canvas-container">
+                        <canvas id="bp-canvas-${bp.id}" class="w-full h-full block pointer-events-none"></canvas>
+                    </div>
+
+                    <!-- Baseline Complete Loop Mean & Standard Deviation Metrics Row -->
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                        <!-- Drag Force (Mean & Std Dev) -->
+                        <div class="bg-slate-950/90 border border-slate-800/90 rounded-xl p-2.5 flex flex-col justify-between">
+                            <div class="flex items-center justify-between">
+                                <span class="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Baseline #${bp.id} Avg Drag</span>
+                                <i class="ph-bold ph-wind text-rose-400 text-xs"></i>
+                            </div>
+                            <div class="my-1">
+                                <div class="text-lg font-bold font-mono text-white flex items-baseline gap-1.5 flex-wrap">
+                                    ${dragRounded.toLocaleString()} <span class="text-xs font-normal text-slate-400">N</span>
+                                    <span class="text-xs font-mono font-normal text-rose-300/90">±${m.dragStd.toFixed(1)}</span>
+                                </div>
+                                <div class="text-[10px] font-mono text-rose-300/80">σ = ±${m.dragStd.toFixed(1)} N (3s–4s loop)</div>
+                                <div id="bp-delta-drag-${bp.id}" class="text-[10px] font-mono text-slate-400 mt-0.5">Active Δ: 0 N</div>
+                            </div>
+                            <div class="text-[10px] text-slate-400 border-t border-slate-800/80 pt-1 flex justify-between">
+                                <span>Avg Power Loss:</span>
+                                <span class="font-mono text-rose-300 font-medium">${m.powerKw.toFixed(1)} ±${m.powerStdKw.toFixed(1)} kW</span>
+                            </div>
+                        </div>
+
+                        <!-- Lift / Downforce (Mean & Std Dev) -->
+                        <div class="bg-slate-950/90 border border-slate-800/90 rounded-xl p-2.5 flex flex-col justify-between">
+                            <div class="flex items-center justify-between">
+                                <span class="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Avg Lift / Downforce</span>
+                                <span class="text-[9px] font-mono px-1.5 py-0.5 rounded border ${liftBadgeClass}">${liftBadgeText}</span>
+                            </div>
+                            <div class="my-1">
+                                <div class="text-lg font-bold font-mono text-white flex items-baseline gap-1.5 flex-wrap">
+                                    ${liftRounded > 0 ? '+' : ''}${liftRounded.toLocaleString()} <span class="text-xs font-normal text-slate-400">N</span>
+                                    <span class="text-xs font-mono font-normal text-sky-300/90">±${m.liftStd.toFixed(1)}</span>
+                                </div>
+                                <div class="text-[10px] font-mono text-sky-300/80">σ = ±${m.liftStd.toFixed(1)} N (3s–4s loop)</div>
+                                <div id="bp-delta-lift-${bp.id}" class="text-[10px] font-mono text-slate-400 mt-0.5">Active Δ: 0 N</div>
+                            </div>
+                            <div class="text-[10px] text-slate-400 border-t border-slate-800/80 pt-1 flex justify-between">
+                                <span>Avg Vertical Load:</span>
+                                <span class="font-mono text-sky-300 font-medium">${m.kgf > 0 ? '+' : ''}${m.kgf} ±${m.kgfStd} kgf</span>
+                            </div>
+                        </div>
+
+                        <!-- Drag Coeff (Cd) & Cl (Mean & Std Dev) -->
+                        <div class="bg-slate-950/90 border border-slate-800/90 rounded-xl p-2.5 flex flex-col justify-between">
+                            <div class="flex items-center justify-between">
+                                <span class="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Loop Avg Cd</span>
+                                <i class="ph-bold ph-chart-line-down text-amber-400 text-xs"></i>
+                            </div>
+                            <div class="my-1">
+                                <div class="text-lg font-bold font-mono text-amber-400 flex items-baseline gap-1.5 flex-wrap">
+                                    ${m.cd.toFixed(2)}
+                                    <span class="text-xs font-mono font-normal text-amber-300/90">±${m.cdStd.toFixed(3)}</span>
+                                </div>
+                                <div class="text-[10px] font-mono text-amber-300/80">σ = ±${m.cdStd.toFixed(3)}</div>
+                                <div class="text-[10px] font-mono text-slate-400 mt-0.5">Frontal Area: ${m.areaM2.toFixed(2)} m²</div>
+                            </div>
+                            <div class="text-[10px] text-slate-400 border-t border-slate-800/80 pt-1 flex justify-between">
+                                <span>Avg Lift Coeff (Cl):</span>
+                                <span class="font-mono text-slate-200 font-medium">${m.cl >= 0 ? '+' : ''}${m.cl.toFixed(2)} ±${m.clStd.toFixed(2)}</span>
+                            </div>
+                        </div>
+
+                        <!-- L/D Aero Efficiency (Mean & Std Dev) -->
+                        <div class="bg-slate-950/90 border border-slate-800/90 rounded-xl p-2.5 flex flex-col justify-between">
+                            <div class="flex items-center justify-between">
+                                <span class="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Loop Avg L/D Efficiency</span>
+                                <i class="ph-bold ph-scales text-sky-400 text-xs"></i>
+                            </div>
+                            <div class="my-1">
+                                <div class="text-lg font-bold font-mono text-sky-400 flex items-baseline gap-1.5 flex-wrap">
+                                    ${m.ld >= 0 ? '+' : ''}${m.ld.toFixed(2)}
+                                    <span class="text-xs font-mono font-normal text-sky-300/90">±${m.ldStd.toFixed(3)}</span>
+                                </div>
+                                <div class="text-[10px] font-mono text-sky-300/80">σ = ±${m.ldStd.toFixed(3)} (3s–4s loop)</div>
+                                <div id="bp-delta-ld-${bp.id}" class="text-[10px] font-mono text-slate-400 mt-0.5">Lift-to-Drag Ratio</div>
+                            </div>
+                            <div class="text-[10px] text-slate-400 border-t border-slate-800/80 pt-1 flex justify-between">
+                                <span>Avg Stagnation ΔP:</span>
+                                <span class="font-mono text-slate-200 font-medium">+${m.maxP.toLocaleString()} ±${m.maxPStd} Pa</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                listEl.appendChild(card);
+                const cEl = document.getElementById(`bp-canvas-${bp.id}`);
+                bp.canvasEl = cEl;
+            });
+
+            resizeBaselineCanvases();
+            updateBaselinePaneDeltasDOM();
+        }
+
+        function updateBaselinePaneDeltasDOM() {
+            if (baselinePanes.length === 0) return;
+            const activeDragMean = loopStats.dragMean;
+            const activeLiftMean = loopStats.liftMean;
+            const activeLdMean = loopStats.ldMean;
+
+            for (let i = 0; i < baselinePanes.length; i++) {
+                const bp = baselinePanes[i];
+                const dDragEl = document.getElementById(`bp-delta-drag-${bp.id}`);
+                const dLiftEl = document.getElementById(`bp-delta-lift-${bp.id}`);
+                const dLdEl = document.getElementById(`bp-delta-ld-${bp.id}`);
+
+                if (dDragEl) {
+                    const diffD = Math.round(activeDragMean - bp.metrics.dragN);
+                    const signD = diffD > 0 ? '+' : '';
+                    const colD = diffD <= 0 ? 'text-emerald-400' : 'text-rose-400';
+                    dDragEl.innerHTML = `Active Mean vs #${bp.id}: <span class="${colD} font-semibold">${signD}${diffD} N</span>`;
+                }
+                if (dLiftEl) {
+                    const diffL = Math.round(activeLiftMean - bp.metrics.liftN);
+                    const signL = diffL > 0 ? '+' : '';
+                    const colL = diffL <= 0 ? 'text-emerald-400' : 'text-amber-400';
+                    dLiftEl.innerHTML = `Active Mean vs #${bp.id}: <span class="${colL} font-semibold">${signL}${diffL} N</span>`;
+                }
+                if (dLdEl) {
+                    const diffLd = activeLdMean - bp.metrics.ld;
+                    const signLd = diffLd > 0 ? '+' : '';
+                    dLdEl.innerHTML = `Active Mean Δ L/D: <span class="text-sky-300 font-semibold">${signLd}${diffLd.toFixed(2)}</span>`;
+                }
+            }
+        }
+
+        function restoreBaselineToActive(bId) {
+            const bp = baselinePanes.find(item => item.id === bId);
+            if (!bp) return;
+            pushUndoState();
+            solid.set(bp.solid);
+            rebuildSmoothBoundaryNormals();
+            resetFluidOnly();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function deleteBaselinePane(bId) {
+            baselinePanes = baselinePanes.filter(item => item.id !== bId);
+            if (baselinePanes.length > 0) {
+                baseDragN = baselinePanes[0].metrics.dragN;
+                baseLiftN = baselinePanes[0].metrics.liftN;
+                baseCd = baselinePanes[0].metrics.cd;
+                baseLd = baselinePanes[0].metrics.ld;
+            } else {
+                baselineLocked = false;
+                document.getElementById('btn-clear-baseline').classList.add('hidden');
+                document.getElementById('delta-drag').textContent = 'No baseline locked';
+                document.getElementById('delta-lift').textContent = 'No baseline locked';
+                document.getElementById('delta-ld').textContent = 'Lift-to-Drag Ratio';
+            }
+            rebuildBaselinePanesDOM();
+            updateTelemetryDOM();
+        }
+
+        function clearBaseline() {
+            baselinePanes = [];
+            baselineLocked = false;
+            document.getElementById('btn-clear-baseline').classList.add('hidden');
+            document.getElementById('delta-drag').textContent = 'No baseline locked';
+            document.getElementById('delta-lift').textContent = 'No baseline locked';
+            rebuildBaselinePanesDOM();
+        }
+
+        function resizeBaselineCanvases() {
+            for (let i = 0; i < baselinePanes.length; i++) {
+                const bp = baselinePanes[i];
+                if (bp.canvasEl && bp.canvasEl.parentElement) {
+                    const rect = bp.canvasEl.parentElement.getBoundingClientRect();
+                    bp.canvasEl.width = Math.max(440, Math.floor(rect.width));
+                    bp.canvasEl.height = Math.max(200, Math.floor(rect.height));
+                }
+            }
+        }
+
+        // --- Step & Render All Saved Baseline Panes (3s-4s Loop Playback) ---
+        function stepAndRenderBaselinePanes() {
+            if (baselinePanes.length === 0) return;
+
+            const showParticles = document.getElementById('chk-particles').checked;
+            const showVelVectors = document.getElementById('chk-velocity-vectors').checked;
+            const showSurfVectors = document.getElementById('chk-surface-vectors').checked;
+            const showCop = document.getElementById('chk-cop').checked;
+
+            for (let b = 0; b < baselinePanes.length; b++) {
+                const bp = baselinePanes[b];
+                if (!bp.canvasEl || bp.frames.length === 0) continue;
+
+                const bCtx = bp.canvasEl.getContext('2d');
+                const frames = bp.frames;
+
+                if (!isPaused && frames.length >= 2) {
+                    bp.cursor += 0.45 * bp.dir;
+                    if (bp.cursor >= frames.length - 1) {
+                        bp.cursor = frames.length - 1;
+                        bp.dir = -1;
+                    } else if (bp.cursor <= 0) {
+                        bp.cursor = 0;
+                        bp.dir = 1;
+                    }
+                }
+
+                const idx0 = Math.floor(bp.cursor);
+                const idx1 = Math.min(frames.length - 1, idx0 + 1);
+                const alpha = bp.cursor - idx0;
+                const oneMinusA = 1.0 - alpha;
+                const f0 = frames[idx0];
+                const f1 = frames[idx1];
+
+                // Update time badge in baseline header
+                const timeBadge = document.getElementById(`bp-time-${bp.id}`);
+                if (timeBadge) {
+                    const tSec = (LOOP_START_SEC + (bp.cursor / Math.max(1, frames.length - 1)) * (LOOP_END_SEC - LOOP_START_SEC)).toFixed(2);
+                    timeBadge.textContent = `3s–4s Loop (t = ${tSec}s)`;
+                }
+
+                // Interpolate frame fields & render color LUT into bp.imgData
+                const data = bp.imgData.data;
+                const bSolid = bp.solid;
+                const bSolidFrac = bp.solidFrac;
+                const uW = bp.uWork;
+                const vW = bp.vWork;
+
+                for (let y = 0; y < NY; y++) {
+                    const row = y * NX;
+                    for (let x = 0; x < NX; x++) {
+                        const i = row + x;
+                        const pIdx = i * 4;
+
+                        if (bSolid[i]) {
+                            const isEdge = (x > 0 && !bSolid[i - 1]) || (x < NX - 1 && !bSolid[i + 1]) ||
+                                           (y > 0 && !bSolid[i - NX]) || (y < NY - 1 && !bSolid[i + NX]);
+                            if (isEdge) {
+                                data[pIdx] = 165;
+                                data[pIdx + 1] = 180;
+                                data[pIdx + 2] = 202;
+                            } else {
+                                const shade = ((x + y) % 2 === 0) ? 44 : 50;
+                                data[pIdx] = shade;
+                                data[pIdx + 1] = shade + 6;
+                                data[pIdx + 2] = shade + 16;
+                            }
+                            data[pIdx + 3] = 255;
+                            uW[i] = 0;
+                            vW[i] = 0;
+                            continue;
+                        }
+
+                        const uVal = f0.u[i] * oneMinusA + f1.u[i] * alpha;
+                        const vVal = f0.v[i] * oneMinusA + f1.v[i] * alpha;
+                        const pVal = f0.p[i] * oneMinusA + f1.p[i] * alpha;
+                        const cVal = f0.curl[i] * oneMinusA + f1.curl[i] * alpha;
+                        uW[i] = uVal;
+                        vW[i] = vVal;
+
+                        let r = 9, g = 13, bl = 22;
+                        if (fieldMode === 'velocity') {
+                            const speed = Math.hypot(uVal, vVal);
+                            const norm = Math.min(1.0, Math.max(0.0, speed / (bp.uInlet * 1.75)));
+                            const cIdx = ((norm * 255) | 0) * 3;
+                            r = plasmaLUT[cIdx];
+                            g = plasmaLUT[cIdx + 1];
+                            bl = plasmaLUT[cIdx + 2];
+                        } else if (fieldMode === 'pressure') {
+                            const pNorm = Math.min(1.0, Math.max(0.0, 0.5 + (pVal / (bp.uInlet * bp.uInlet * 0.90))));
+                            const cIdx = ((pNorm * 255) | 0) * 3;
+                            r = pressureLUT[cIdx];
+                            g = pressureLUT[cIdx + 1];
+                            bl = pressureLUT[cIdx + 2];
+                        } else if (fieldMode === 'vorticity') {
+                            const cNorm = Math.min(1.0, Math.max(0.0, 0.5 + cVal * 2.1));
+                            const cIdx = ((cNorm * 255) | 0) * 3;
+                            r = vorticityLUT[cIdx];
+                            g = vorticityLUT[cIdx + 1];
+                            bl = vorticityLUT[cIdx + 2];
+                        }
+
+                        const edgeBlend = Math.min(1.0, bSolidFrac[i] * 1.6);
+                        if (edgeBlend > 0.05) {
+                            r = r * (1 - edgeBlend) + 148 * edgeBlend;
+                            g = g * (1 - edgeBlend) + 163 * edgeBlend;
+                            bl = bl * (1 - edgeBlend) + 184 * edgeBlend;
+                        }
+
+                        data[pIdx] = r;
+                        data[pIdx + 1] = g;
+                        data[pIdx + 2] = bl;
+                        data[pIdx + 3] = 255;
+                    }
+                }
+
+                bp.offCtx.putImageData(bp.imgData, 0, 0);
+
+                const cw = bp.canvasEl.width;
+                const ch = bp.canvasEl.height;
+                bCtx.save();
+                bCtx.imageSmoothingEnabled = true;
+                bCtx.imageSmoothingQuality = 'high';
+                bCtx.drawImage(bp.offCanvas, 0, 0, cw, ch);
+                bCtx.restore();
+
+                const scaleX = cw / NX;
+                const scaleY = ch / NY;
+
+                // Ground strip
+                bCtx.fillStyle = bp.movingGround ? 'rgba(56, 189, 248, 0.35)' : 'rgba(100, 116, 139, 0.35)';
+                bCtx.fillRect(0, ch - 4, cw, 4);
+
+                // Advect & draw smoke particles for this baseline pane
+                if (!isPaused) {
+                    const pSpeedScale = 2.15 * RES_SCALE;
+                    for (let i = 0; i < bp.numParticles; i++) {
+                        let px = bp.px[i];
+                        let py = bp.py[i];
+                        bp.page[i]++;
+
+                        if (px >= NX - 6 || px < 1 || py < 1 || py >= NY - 3 || bp.page[i] > 480 || bSolid[IX(px | 0, py | 0)]) {
+                            bp.px[i] = 5 + Math.random() * 10;
+                            const nozzleIdx = i % bp.numSmokeLines;
+                            const marginY = Math.round(14 * RES_SCALE);
+                            const usableHeight = NY - marginY * 2;
+                            bp.py[i] = marginY + (nozzleIdx / Math.max(1, bp.numSmokeLines - 1)) * usableHeight + (Math.random() - 0.5) * 0.7;
+                            bp.page[i] = 0;
+                            continue;
+                        }
+
+                        const x0 = Math.max(0, Math.min(NX - 2, px | 0));
+                        const y0 = Math.max(0, Math.min(NY - 2, py | 0));
+                        const i00 = y0 * NX + x0;
+                        const vx = uW[i00];
+                        const vy = vW[i00];
+
+                        px += pSpeedScale * vx;
+                        py += pSpeedScale * vy;
+
+                        const nIdx = IX(px | 0, py | 0);
+                        if (bSolid[nIdx]) {
+                            px += bp.normX[nIdx] * (1.25 * RES_SCALE);
+                            py += bp.normY[nIdx] * (1.25 * RES_SCALE);
+                        }
+                        bp.px[i] = px;
+                        bp.py[i] = py;
+                    }
+                }
+
+                if (showParticles) {
+                    bCtx.save();
+                    bCtx.lineWidth = Math.max(1.3, scaleX * 0.7);
+                    bCtx.lineCap = 'round';
+                    bCtx.strokeStyle = fieldMode === 'none' ? 'rgba(224, 242, 254, 0.85)' : 'rgba(255, 255, 255, 0.72)';
+                    bCtx.beginPath();
+                    for (let i = 0; i < bp.numParticles; i++) {
+                        const px = bp.px[i];
+                        const py = bp.py[i];
+                        const idx = IX(Math.max(0, Math.min(NX - 1, px | 0)), Math.max(0, Math.min(NY - 1, py | 0)));
+                        const sx = px * scaleX;
+                        const sy = py * scaleY;
+                        bCtx.moveTo((px - uW[idx] * 1.9 * RES_SCALE) * scaleX, (py - vW[idx] * 1.9 * RES_SCALE) * scaleY);
+                        bCtx.lineTo(sx, sy);
+                    }
+                    bCtx.stroke();
+                    bCtx.restore();
+                }
+
+                if (showVelVectors) {
+                    bCtx.save();
+                    bCtx.strokeStyle = 'rgba(16, 185, 129, 0.65)';
+                    bCtx.lineWidth = 1.1;
+                    const step = 12;
+                    for (let y = 8; y < NY - 8; y += step) {
+                        for (let x = 8; x < NX - 8; x += step) {
+                            const idx = IX(x, y);
+                            if (bSolid[idx]) continue;
+                            const vx = uW[idx];
+                            const vy = vW[idx];
+                            const mag = Math.hypot(vx, vy);
+                            if (mag < 0.05) continue;
+                            const cx = (x + 0.5) * scaleX;
+                            const cy = (y + 0.5) * scaleY;
+                            const len = Math.min(step * scaleX * 0.85, (mag / bp.uInlet) * step * scaleX * 0.55);
+                            const dirX = vx / mag;
+                            const dirY = vy / mag;
+                            bCtx.beginPath();
+                            bCtx.moveTo(cx, cy);
+                            bCtx.lineTo(cx + dirX * len, cy + dirY * len);
+                            bCtx.stroke();
+                        }
+                    }
+                    bCtx.restore();
+                }
+
+                const vecs = alpha < 0.5 ? f0.vectors : f1.vectors;
+                if (showSurfVectors && vecs && vecs.length > 0) {
+                    bCtx.save();
+                    bCtx.lineWidth = 1.4;
+                    for (let i = 0; i < vecs.length; i++) {
+                        const bv = vecs[i];
+                        const nLen = Math.hypot(bv.nx, bv.ny) || 1;
+                        const nx = bv.nx / nLen;
+                        const ny = bv.ny / nLen;
+                        const mag = Math.min(24, Math.abs(bv.cp) * 14);
+                        if (mag < 2.0) continue;
+                        const sx = (bv.x + 0.5) * scaleX;
+                        const sy = (bv.y + 0.5) * scaleY;
+                        if (bv.cp > 0) {
+                            bCtx.strokeStyle = 'rgba(251, 113, 133, 0.85)';
+                            bCtx.beginPath();
+                            bCtx.moveTo(sx + nx * (mag + 3), sy + ny * (mag + 3));
+                            bCtx.lineTo(sx, sy);
+                            bCtx.stroke();
+                        } else {
+                            bCtx.strokeStyle = 'rgba(56, 189, 248, 0.85)';
+                            bCtx.beginPath();
+                            bCtx.moveTo(sx, sy);
+                            bCtx.lineTo(sx + nx * (mag + 3), sy + ny * (mag + 3));
+                            bCtx.stroke();
+                        }
+                    }
+                    bCtx.restore();
+                }
+
+                if (showCop && bp.hasSolidCells) {
+                    const bCopX = (f0.copX * oneMinusA + f1.copX * alpha) * scaleX;
+                    const bCopY = (f0.copY * oneMinusA + f1.copY * alpha) * scaleY;
+                    bCtx.save();
+                    bCtx.strokeStyle = '#facc15';
+                    bCtx.fillStyle = '#0f172a';
+                    bCtx.lineWidth = 2;
+                    bCtx.beginPath();
+                    bCtx.arc(bCopX, bCopY, 5, 0, Math.PI * 2);
+                    bCtx.fill();
+                    bCtx.stroke();
+                    bCtx.font = 'bold 10px "JetBrains Mono", monospace';
+                    bCtx.fillStyle = '#fef08a';
+                    bCtx.fillText(`CoP #${bp.id}`, bCopX + 8, bCopY - 6);
+                    bCtx.restore();
+                }
+            }
+        }
+
+        // --- Render Wind Tunnel Scene ---
+        function renderWindTunnel() {
+            const data = imgData.data;
+
+            // 1. Render Eulerian Grid Color Field with Sub-Grid Anti-Aliased Obstacle Blending
+            for (let y = 0; y < NY; y++) {
+                const row = y * NX;
+                for (let x = 0; x < NX; x++) {
+                    const idx = row + x;
+                    const pIdx = idx * 4;
+
+                    if (solid[idx]) {
+                        const isEdge = (x > 0 && !solid[idx - 1]) || (x < NX - 1 && !solid[idx + 1]) ||
+                                       (y > 0 && !solid[idx - NX]) || (y < NY - 1 && !solid[idx + NX]);
+                        if (isEdge) {
+                            data[pIdx] = 165;
+                            data[pIdx + 1] = 180;
+                            data[pIdx + 2] = 202;
+                        } else {
+                            const shade = ((x + y) % 2 === 0) ? 44 : 50;
+                            data[pIdx] = shade;
+                            data[pIdx + 1] = shade + 6;
+                            data[pIdx + 2] = shade + 16;
+                        }
+                        data[pIdx + 3] = 255;
+                        continue;
+                    }
+
+                    let r = 9, g = 13, b = 22;
+                    if (fieldMode === 'velocity') {
+                        const speed = Math.hypot(u[idx], v[idx]);
+                        const norm = Math.min(1.0, Math.max(0.0, speed / (uInlet * 1.75)));
+                        const cIdx = ((norm * 255) | 0) * 3;
+                        r = plasmaLUT[cIdx];
+                        g = plasmaLUT[cIdx + 1];
+                        b = plasmaLUT[cIdx + 2];
+                    } else if (fieldMode === 'pressure') {
+                        const pNorm = Math.min(1.0, Math.max(0.0, 0.5 + (p[idx] / (uInlet * uInlet * 0.90))));
+                        const cIdx = ((pNorm * 255) | 0) * 3;
+                        r = pressureLUT[cIdx];
+                        g = pressureLUT[cIdx + 1];
+                        b = pressureLUT[cIdx + 2];
+                    } else if (fieldMode === 'vorticity') {
+                        const cNorm = Math.min(1.0, Math.max(0.0, 0.5 + curl[idx] * 2.1));
+                        const cIdx = ((cNorm * 255) | 0) * 3;
+                        r = vorticityLUT[cIdx];
+                        g = vorticityLUT[cIdx + 1];
+                        b = vorticityLUT[cIdx + 2];
+                    }
+
+                    // Smooth sub-pixel boundary anti-aliasing blend using solidFrac
+                    const edgeBlend = Math.min(1.0, solidFrac[idx] * 1.6);
+                    if (edgeBlend > 0.05) {
+                        r = r * (1 - edgeBlend) + 148 * edgeBlend;
+                        g = g * (1 - edgeBlend) + 163 * edgeBlend;
+                        b = b * (1 - edgeBlend) + 184 * edgeBlend;
+                    }
+
+                    data[pIdx] = r;
+                    data[pIdx + 1] = g;
+                    data[pIdx + 2] = b;
+                    data[pIdx + 3] = 255;
+                }
+            }
+
+            offCtx.putImageData(imgData, 0, 0);
+
+            // Draw scaled fluid field onto display canvas with smooth bilinear interpolation
+            ctx.save();
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            ctx.drawImage(offCanvas, 0, 0, canvas.width, canvas.height);
+            ctx.restore();
+
+            const scaleX = canvas.width / NX;
+            const scaleY = canvas.height / NY;
+
+            // 2. Render Rolling Road Ground Indicator
+            ctx.save();
+            ctx.fillStyle = movingGround ? 'rgba(56, 189, 248, 0.35)' : 'rgba(100, 116, 139, 0.35)';
+            ctx.fillRect(0, canvas.height - 4, canvas.width, 4);
+            ctx.restore();
+
+            // 3. Render Smoke Streamlines / Tracer Particles Overlay
+            if (document.getElementById('chk-particles').checked) {
+                ctx.save();
+                ctx.lineWidth = Math.max(1.4, scaleX * 0.72);
+                ctx.lineCap = 'round';
+                ctx.strokeStyle = fieldMode === 'none' ? 'rgba(224, 242, 254, 0.85)' : 'rgba(255, 255, 255, 0.72)';
+
+                ctx.beginPath();
+                for (let i = 0; i < MAX_PARTICLES; i++) {
+                    const px = particlesX[i];
+                    const py = particlesY[i];
+                    const vel = sampleVelocityBilinear(px, py);
+                    const sx = px * scaleX;
+                    const sy = py * scaleY;
+                    const tailX = (px - vel.u * 1.9 * RES_SCALE) * scaleX;
+                    const tailY = (py - vel.v * 1.9 * RES_SCALE) * scaleY;
+
+                    ctx.moveTo(tailX, tailY);
+                    ctx.lineTo(sx, sy);
+                }
+                ctx.stroke();
+                ctx.restore();
+            }
+
+            // 4. Render Velocity Vector Grid Overlay
+            if (document.getElementById('chk-velocity-vectors').checked) {
+                ctx.save();
+                ctx.strokeStyle = 'rgba(16, 185, 129, 0.65)';
+                ctx.lineWidth = 1.2;
+                const step = 12;
+                for (let y = 8; y < NY - 8; y += step) {
+                    for (let x = 8; x < NX - 8; x += step) {
+                        const idx = IX(x, y);
+                        if (solid[idx]) continue;
+                        const vx = u[idx];
+                        const vy = v[idx];
+                        const mag = Math.hypot(vx, vy);
+                        if (mag < 0.05) continue;
+
+                        const cx = (x + 0.5) * scaleX;
+                        const cy = (y + 0.5) * scaleY;
+                        const len = Math.min(step * scaleX * 0.85, (mag / uInlet) * step * scaleX * 0.55);
+                        const dirX = vx / mag;
+                        const dirY = vy / mag;
+                        const ex = cx + dirX * len;
+                        const ey = cy + dirY * len;
+
+                        ctx.beginPath();
+                        ctx.moveTo(cx, cy);
+                        ctx.lineTo(ex, ey);
+                        // Arrowhead
+                        ctx.lineTo(ex - dirX * 4 - dirY * 2.5, ey - dirY * 4 + dirX * 2.5);
+                        ctx.moveTo(ex, ey);
+                        ctx.lineTo(ex - dirX * 4 + dirY * 2.5, ey - dirY * 4 - dirX * 2.5);
+                        ctx.stroke();
+                    }
+                }
+                ctx.restore();
+            }
+
+            // 5. Render Surface Pressure Force Vectors on Obstacle Boundary
+            if (document.getElementById('chk-surface-vectors').checked && boundaryVectors.length > 0) {
+                ctx.save();
+                ctx.lineWidth = 1.5;
+                for (let i = 0; i < boundaryVectors.length; i++) {
+                    const bv = boundaryVectors[i];
+                    const nLen = Math.hypot(bv.nx, bv.ny) || 1;
+                    const nx = bv.nx / nLen;
+                    const ny = bv.ny / nLen;
+
+                    const mag = Math.min(24, Math.abs(bv.cp) * 14);
+                    if (mag < 2.0) continue;
+
+                    const sx = (bv.x + 0.5) * scaleX;
+                    const sy = (bv.y + 0.5) * scaleY;
+
+                    if (bv.cp > 0) {
+                        // Positive pressure pushing INWARD on vehicle surface (Red/Orange)
+                        ctx.strokeStyle = 'rgba(251, 113, 133, 0.85)';
+                        const origX = sx + nx * (mag + 3);
+                        const origY = sy + ny * (mag + 3);
+                        ctx.beginPath();
+                        ctx.moveTo(origX, origY);
+                        ctx.lineTo(sx, sy);
+                        ctx.stroke();
+                    } else {
+                        // Negative pressure suction pulling OUTWARD from vehicle surface (Cyan)
+                        ctx.strokeStyle = 'rgba(56, 189, 248, 0.85)';
+                        const endX = sx + nx * (mag + 3);
+                        const endY = sy + ny * (mag + 3);
+                        ctx.beginPath();
+                        ctx.moveTo(sx, sy);
+                        ctx.lineTo(endX, endY);
+                        ctx.stroke();
+                    }
+                }
+                ctx.restore();
+            }
+
+            // 6. Render Center of Pressure (CoP) & Resultant Total Force Vector
+            if (document.getElementById('chk-cop').checked && hasSolidCells) {
+                const cx = copX * scaleX;
+                const cy = copY * scaleY;
+
+                ctx.save();
+                // Resultant Force Vector Arrow from CoP
+                const vecScale = 0.035;
+                const fxPix = Math.min(90, smoothDragN * vecScale);
+                const fyPix = Math.max(-90, Math.min(90, -smoothLiftN * vecScale)); // Negative lift (downforce) points down (+Y)
+
+                if (Math.hypot(fxPix, fyPix) > 4) {
+                    ctx.strokeStyle = '#facc15';
+                    ctx.lineWidth = 2.5;
+                    ctx.beginPath();
+                    ctx.moveTo(cx, cy);
+                    ctx.lineTo(cx + fxPix, cy + fyPix);
+                    ctx.stroke();
+
+                    // Arrow head
+                    const angle = Math.atan2(fyPix, fxPix);
+                    ctx.fillStyle = '#facc15';
+                    ctx.beginPath();
+                    ctx.moveTo(cx + fxPix, cy + fyPix);
+                    ctx.lineTo(cx + fxPix - 9 * Math.cos(angle - 0.4), cy + fyPix - 9 * Math.sin(angle - 0.4));
+                    ctx.lineTo(cx + fxPix - 9 * Math.cos(angle + 0.4), cy + fyPix - 9 * Math.sin(angle + 0.4));
+                    ctx.closePath();
+                    ctx.fill();
+                }
+
+                // CoP Target Crosshair
+                ctx.strokeStyle = '#facc15';
+                ctx.fillStyle = '#0f172a';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(cx, cy, 5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.font = 'bold 10px "JetBrains Mono", monospace';
+                ctx.fillStyle = '#fef08a';
+                ctx.fillText('CoP', cx + 8, cy - 6);
+                ctx.restore();
+            }
+
+            // 7. Render Interactive Tool Preview & Cursor
+            if (currGridX >= 0 && currGridY >= 0) {
+                ctx.save();
+                const cx = (currGridX + 0.5) * scaleX;
+                const cy = (currGridY + 0.5) * scaleY;
+
+                if (currentTool === 'line' && isPointerDown) {
+                    ctx.strokeStyle = 'rgba(56, 189, 248, 0.9)';
+                    ctx.lineWidth = Math.max(2, brushRadius * scaleX);
+                    ctx.lineCap = 'round';
+                    ctx.beginPath();
+                    ctx.moveTo((startGridX + 0.5) * scaleX, (startGridY + 0.5) * scaleY);
+                    ctx.lineTo(cx, cy);
+                    ctx.stroke();
+                } else if (currentTool === 'boxerase') {
+                    if (isPointerDown) {
+                        const sx0 = Math.min(startGridX, currGridX) * scaleX;
+                        const sy0 = Math.min(startGridY, currGridY) * scaleY;
+                        const sw = (Math.abs(currGridX - startGridX) + 1) * scaleX;
+                        const sh = (Math.abs(currGridY - startGridY) + 1) * scaleY;
+                        ctx.fillStyle = 'rgba(244, 63, 94, 0.22)';
+                        ctx.strokeStyle = 'rgba(244, 63, 94, 0.95)';
+                        ctx.lineWidth = 1.8;
+                        ctx.setLineDash([5, 4]);
+                        ctx.fillRect(sx0, sy0, sw, sh);
+                        ctx.strokeRect(sx0, sy0, sw, sh);
+                        ctx.setLineDash([]);
+                    } else {
+                        ctx.strokeStyle = 'rgba(244, 63, 94, 0.85)';
+                        ctx.lineWidth = 1.5;
+                        ctx.strokeRect(cx - 10, cy - 10, 20, 20);
+                    }
+                } else if (currentTool === 'rotate') {
+                    const px = (isDraggingRotation ? rotPivotX : currGridX) * scaleX;
+                    const py = (isDraggingRotation ? rotPivotY : currGridY) * scaleY;
+                    ctx.strokeStyle = '#fbbf24';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(px, py, 28, 0, Math.PI * 2);
+                    ctx.stroke();
+
+                    ctx.beginPath();
+                    ctx.arc(px, py, 4, 0, Math.PI * 2);
+                    ctx.fillStyle = '#fbbf24';
+                    ctx.fill();
+
+                    if (isDraggingRotation) {
+                        ctx.beginPath();
+                        ctx.moveTo(px, py);
+                        ctx.lineTo(cx, cy);
+                        ctx.stroke();
+                        ctx.font = 'bold 12px "JetBrains Mono", monospace';
+                        ctx.fillStyle = '#fef08a';
+                        ctx.fillText(`${rotCurrentDeg > 0 ? '+' : ''}${Math.round(rotCurrentDeg)}°`, px + 12, py - 12);
+                    }
+                } else if (currentTool === 'wing') {
+                    // Preview Inverted Motorsports Downforce Wing Stamp (Leading edge low, Trailing edge kicked up)
+                    ctx.strokeStyle = 'rgba(52, 211, 153, 0.95)';
+                    ctx.lineWidth = 1.8;
+                    const chord = (brushRadius * 3.0) * scaleX;
+                    const rad = (-wingAoADeg * Math.PI) / 180; // Positive AoA pitches leading edge down & trailing edge up
+                    ctx.translate(cx, cy);
+                    ctx.rotate(rad);
+                    ctx.beginPath();
+                    ctx.moveTo(-chord * 0.5, 0);
+                    ctx.quadraticCurveTo(0, -chord * 0.04, chord * 0.5, -chord * 0.03); // Flat/slightly concave top pressure face
+                    ctx.quadraticCurveTo(0, chord * 0.24, -chord * 0.5, 0);             // Deep convex suction underside
+                    ctx.stroke();
+                } else if (currentTool === 'probe') {
+                    // Flow Probe Crosshair
+                    ctx.strokeStyle = '#38bdf8';
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, 8, 0, Math.PI * 2);
+                    ctx.moveTo(cx - 13, cy);
+                    ctx.lineTo(cx + 13, cy);
+                    ctx.moveTo(cx, cy - 13);
+                    ctx.lineTo(cx, cy + 13);
+                    ctx.stroke();
+                } else {
+                    // Brush / Eraser / Wheel radius circle
+                    ctx.strokeStyle = (currentTool === 'eraser' || pointerButton === 2)
+                        ? 'rgba(244, 63, 94, 0.9)'
+                        : 'rgba(56, 189, 248, 0.85)';
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, brushRadius * scaleX, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+                ctx.restore();
+            }
+        }
+
+        // --- Render Live Sparkline Graph ---
+        function renderSparkline() {
+            const w = sparkCanvas.width;
+            const h = sparkCanvas.height;
+            sparkCtx.clearRect(0, 0, w, h);
+
+            // Zero reference line
+            const midY = h * 0.55;
+            sparkCtx.strokeStyle = 'rgba(51, 65, 85, 0.6)';
+            sparkCtx.lineWidth = 1;
+            sparkCtx.setLineDash([3, 3]);
+            sparkCtx.beginPath();
+            sparkCtx.moveTo(0, midY);
+            sparkCtx.lineTo(w, midY);
+            sparkCtx.stroke();
+            sparkCtx.setLineDash([]);
+
+            let maxAbs = 500;
+            for (let i = 0; i < HISTORY_LEN; i++) {
+                maxAbs = Math.max(maxAbs, Math.abs(dragHistory[i]), Math.abs(liftHistory[i]));
+            }
+            maxAbs *= 1.15;
+
+            const stepX = w / (HISTORY_LEN - 1);
+
+            // Plot Drag History (Rose)
+            sparkCtx.strokeStyle = '#fb7185';
+            sparkCtx.lineWidth = 1.6;
+            sparkCtx.beginPath();
+            for (let i = 0; i < HISTORY_LEN; i++) {
+                const x = i * stepX;
+                const y = midY - (dragHistory[i] / maxAbs) * (h * 0.44);
+                if (i === 0) sparkCtx.moveTo(x, y);
+                else sparkCtx.lineTo(x, y);
+            }
+            sparkCtx.stroke();
+
+            // Plot Lift/Downforce History (Sky Blue)
+            sparkCtx.strokeStyle = '#38bdf8';
+            sparkCtx.lineWidth = 1.6;
+            sparkCtx.beginPath();
+            for (let i = 0; i < HISTORY_LEN; i++) {
+                const x = i * stepX;
+                const y = midY - (liftHistory[i] / maxAbs) * (h * 0.44);
+                if (i === 0) sparkCtx.moveTo(x, y);
+                else sparkCtx.lineTo(x, y);
+            }
+            sparkCtx.stroke();
+        }
+
+        // --- High-Resolution Sub-Stepped Drawing & Sculpting Primitives ---
+        function stampCircle(cx, cy, r, val) {
+            const r2 = r * r;
+            const xMin = Math.max(4, Math.floor(cx - r));
+            const xMax = Math.min(NX - 4, Math.ceil(cx + r));
+            const yMin = Math.max(1, Math.floor(cy - r));
+            const yMax = Math.min(NY - 2, Math.ceil(cy + r));
+
+            for (let y = yMin; y <= yMax; y++) {
+                for (let x = xMin; x <= xMax; x++) {
+                    const dx = x - cx;
+                    const dy = y - cy;
+                    if (dx * dx + dy * dy <= r2) {
+                        const idx = IX(x, y);
+                        solid[idx] = val;
+                        if (val === 1) {
+                            u[idx] = 0;
+                            v[idx] = 0;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Exact Capsule Distance Field Line Stamp (Eliminates bumpy circle-stepping along drawn lines & splitters!)
+        function stampLine(x0, y0, x1, y1, r, val) {
+            const minX = Math.max(4, Math.floor(Math.min(x0, x1) - r - 1));
+            const maxX = Math.min(NX - 4, Math.ceil(Math.max(x0, x1) + r + 1));
+            const minY = Math.max(1, Math.floor(Math.min(y0, y1) - r - 1));
+            const maxY = Math.min(NY - 2, Math.ceil(Math.max(y0, y1) + r + 1));
+
+            const vx = x1 - x0;
+            const vy = y1 - y0;
+            const lenSq = vx * vx + vy * vy;
+            const r2 = r * r;
+
+            for (let y = minY; y <= maxY; y++) {
+                for (let x = minX; x <= maxX; x++) {
+                    let t = 0;
+                    if (lenSq > 1e-6) {
+                        t = ((x - x0) * vx + (y - y0) * vy) / lenSq;
+                        t = Math.max(0, Math.min(1, t));
+                    }
+                    const projX = x0 + t * vx;
+                    const projY = y0 + t * vy;
+                    const distSq = (x - projX) * (x - projX) + (y - projY) * (y - projY);
+
+                    if (distSq <= r2) {
+                        const idx = IX(x, y);
+                        solid[idx] = val;
+                        if (val === 1) {
+                            u[idx] = 0;
+                            v[idx] = 0;
+                        }
+                    }
+                }
+            }
+        }
+
+        /**
+         * Stamp a Motorsports Inverted Downforce Airfoil at (cx, cy)
+         * In screen/grid coordinates (+Y is DOWN toward the road):
+         * - Positive camber (+Y) bulges the bottom surface downward toward the road (convex underside suction surface).
+         * - Positive AoA rotates the nose DOWN (+Y) and kicks the trailing edge UP (-Y), accelerating flow under the wing
+         *   and generating strong positive pressure on top and suction underneath (Net Downforce!).
+         */
+        function stampAirfoil(cx, cy, chordCells, aoaDeg, invertDownforce = true) {
+            // Negate AoA for screen coordinates so positive AoA = leading edge lower, trailing edge higher
+            const rad = (-aoaDeg * Math.PI) / 180;
+            const cosA = Math.cos(rad);
+            const sinA = Math.sin(rad);
+            const halfC = chordCells * 0.5;
+            const thickness = 0.145; // 14.5% thickness-to-chord for clean attached flow
+            const camber = invertDownforce ? 0.075 : -0.075; // +Y camber bulges underside downward for downforce
+
+            const bound = Math.ceil(chordCells * 0.75);
+            for (let dy = -bound; dy <= bound; dy++) {
+                for (let dx = -bound; dx <= bound; dx++) {
+                    const gx = Math.round(cx + dx);
+                    const gy = Math.round(cy + dy);
+                    if (gx < 4 || gx >= NX - 4 || gy < 1 || gy >= NY - 2) continue;
+
+                    const lx = dx * cosA + dy * sinA;
+                    const ly = -dx * sinA + dy * cosA;
+
+                    const xc = (lx + halfC) / chordCells;
+                    if (xc >= 0 && xc <= 1) {
+                        // NACA 4-digit thickness distribution formula
+                        const yt = 5 * thickness * chordCells * (
+                            0.2969 * Math.sqrt(xc) -
+                            0.1260 * xc -
+                            0.3516 * xc * xc +
+                            0.2843 * xc * xc * xc -
+                            0.1015 * xc * xc * xc * xc
+                        );
+                        // Camber line shifted toward trailing half for authentic motorsport rear-wing profile
+                        const yc = camber * chordCells * (4 * xc * (1 - xc) * (0.75 + 0.45 * xc));
+                        if (Math.abs(ly - yc) <= Math.max(0.95, yt)) {
+                            const idx = IX(gx, gy);
+                            solid[idx] = 1;
+                            u[idx] = 0;
+                            v[idx] = 0;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Fill a closed polygon on the obstacle grid
+        function fillPolygon(points, val = 1) {
+            let minX = NX, maxX = 0, minY = NY, maxY = 0;
+            for (const pt of points) {
+                if (pt[0] < minX) minX = Math.floor(pt[0]);
+                if (pt[0] > maxX) maxX = Math.ceil(pt[0]);
+                if (pt[1] < minY) minY = Math.floor(pt[1]);
+                if (pt[1] > maxY) maxY = Math.ceil(pt[1]);
+            }
+            minX = Math.max(3, minX);
+            maxX = Math.min(NX - 3, maxX);
+            minY = Math.max(1, minY);
+            maxY = Math.min(NY - 2, maxY);
+
+            for (let y = minY; y <= maxY; y++) {
+                for (let x = minX; x <= maxX; x++) {
+                    let inside = false;
+                    for (let i = 0, j = points.length - 1; i < points.length; j = i++) {
+                        const xi = points[i][0], yi = points[i][1];
+                        const xj = points[j][0], yj = points[j][1];
+                        const intersect = ((yi > y) !== (yj > y)) &&
+                                          (x < (xj - xi) * (y - yi) / (yj - yi + 1e-7) + xi);
+                        if (intersect) inside = !inside;
+                    }
+                    if (inside) {
+                        const idx = IX(x, y);
+                        solid[idx] = val;
+                        if (val === 1) {
+                            u[idx] = 0;
+                            v[idx] = 0;
+                        }
+                    }
+                }
+            }
+        }
+
+        // --- Built-in Modifiable High-Resolution Vehicle Presets (Scaled for 360x180 Grid) ---
+        function clearObstacles(recordUndo = true) {
+            if (recordUndo) pushUndoState();
+            solid.fill(0);
+            rebuildSmoothBoundaryNormals();
+            resetFluidOnly();
+        }
+
+        function loadTemplate(name, recordUndo = true) {
+            if (recordUndo) pushUndoState();
+            solid.fill(0);
+
+            const sx = NX / 220;
+            const sy = NY / 100;
+            const groundY = NY - Math.round(5 * sy);
+
+            if (name === 'boxy4x4') {
+                const bodyPoly = [
+                    [52 * sx, groundY - 12 * sy],
+                    [52 * sx, groundY - 25 * sy],
+                    [74 * sx, groundY - 26 * sy],
+                    [80 * sx, groundY - 44 * sy],
+                    [136 * sx, groundY - 44 * sy],
+                    [136 * sx, groundY - 12 * sy],
+                ];
+                fillPolygon(bodyPoly, 1);
+
+                stampCircle(68 * sx, groundY - 9 * sy, 10 * sy, 0);
+                stampCircle(120 * sx, groundY - 9 * sy, 10 * sy, 0);
+                stampCircle(68 * sx, groundY - 7 * sy, 7.2 * sy, 1);
+                stampCircle(120 * sx, groundY - 7 * sy, 7.2 * sy, 1);
+                stampCircle(139 * sx, groundY - 24 * sy, 6 * sy, 1);
+
+                stampLine(49 * sx, groundY - 14 * sy, 49 * sx, groundY - 27 * sy, 1.5 * sy, 1);
+                stampLine(49 * sx, groundY - 14 * sy, 53 * sx, groundY - 14 * sy, 1.5 * sy, 1);
+                stampCircle(88 * sx, groundY - 47 * sy, 1.8 * sy, 1);
+                stampCircle(108 * sx, groundY - 47 * sy, 1.8 * sy, 1);
+                stampCircle(128 * sx, groundY - 47 * sy, 1.8 * sy, 1);
+                stampLine(85 * sx, groundY - 48 * sy, 131 * sx, groundY - 48 * sy, 1.2 * sy, 1);
+
+            } else if (name === 'gtfastback') {
+                // Sleek Sports GT Fastback Coupe with front splitter, smooth fastback roof, and rear GT downforce wing
+                const gtPoly = [
+                    [44 * sx, groundY - 6.5 * sy], // Front chin splitter tip
+                    [49 * sx, groundY - 16 * sy],  // Rounded aerodynamic nose cone
+                    [74 * sx, groundY - 20 * sy],  // Low sculpted hood
+                    [94 * sx, groundY - 32 * sy],  // Swept sports windshield
+                    [115 * sx, groundY - 32 * sy], // Teardrop cabin roof peak
+                    [146 * sx, groundY - 19 * sy], // Fastback rear deck
+                    [146 * sx, groundY - 10 * sy], // Rear diffuser exit
+                    [134 * sx, groundY - 6.5 * sy] // Flat Venturi undertray
+                ];
+                fillPolygon(gtPoly, 1);
+                stampCircle(51 * sx, groundY - 12.5 * sy, 4.5 * sy, 1);
+
+                // Carve wheel wells & stamp wheels
+                stampCircle(68 * sx, groundY - 8 * sy, 9.2 * sy, 0);
+                stampCircle(126 * sx, groundY - 8 * sy, 9.2 * sy, 0);
+                stampCircle(68 * sx, groundY - 6.8 * sy, 6.8 * sy, 1);
+                stampCircle(126 * sx, groundY - 6.8 * sy, 6.8 * sy, 1);
+
+                // Rear Inverted GT Wing for balanced rear downforce
+                stampAirfoil(146 * sx, groundY - 27 * sy, 15 * sx, 13, true);
+                stampLine(142 * sx, groundY - 18 * sy, 145 * sx, groundY - 26 * sy, 1.1 * sy, 1);
+
+            } else if (name === 'f1car') {
+                // Open-Wheel Formula 1 Aero Profile with inverted front & dual-element rear downforce wings
+                const f1Body = [
+                    [44 * sx, groundY - 6.5 * sy], // Low nose tip
+                    [68 * sx, groundY - 14 * sy],  // Front bulkhead
+                    [86 * sx, groundY - 16 * sy],  // Cockpit halo entry
+                    [98 * sx, groundY - 25 * sy],  // Airbox / roll hoop
+                    [126 * sx, groundY - 16 * sy], // Tightly packaged engine cover
+                    [139 * sx, groundY - 11 * sy], // Rear Venturi diffuser kick-up
+                    [126 * sx, groundY - 4.8 * sy],// Low Venturi throat
+                    [65 * sx, groundY - 4.8 * sy]  // Front floor leading edge
+                ];
+                fillPolygon(f1Body, 1);
+
+                // Inverted Front Wing Airfoil (Positive AoA = nose low, trailing edge high -> strong front downforce)
+                stampAirfoil(42 * sx, groundY - 5 * sy, 17 * sx, 12, true);
+
+                // Inverted Rear Dual-Element Downforce Wing Assembly
+                stampAirfoil(141 * sx, groundY - 29 * sy, 18 * sx, 16, true);
+                stampAirfoil(148 * sx, groundY - 34 * sy, 9 * sx, 26, true); // Upper DRS flap element
+                stampLine(136 * sx, groundY - 11 * sy, 141 * sx, groundY - 28 * sy, 1.3 * sy, 1);
+
+            } else if (name === 'cybertruck') {
+                const wedgePoly = [
+                    [48 * sx, groundY - 10 * sy],
+                    [48 * sx, groundY - 21 * sy],
+                    [98 * sx, groundY - 42 * sy],
+                    [148 * sx, groundY - 23 * sy],
+                    [148 * sx, groundY - 11 * sy],
+                ];
+                fillPolygon(wedgePoly, 1);
+
+                stampCircle(66 * sx, groundY - 8 * sy, 10 * sy, 0);
+                stampCircle(130 * sx, groundY - 8 * sy, 10 * sy, 0);
+                stampCircle(66 * sx, groundY - 7 * sy, 7.2 * sy, 1);
+                stampCircle(130 * sx, groundY - 7 * sy, 7.2 * sy, 1);
+
+            } else if (name === 'teardrop') {
+                // High-Downforce Inverted Motorsports Mainplane + Flap Assembly in clean freestream air
+                stampAirfoil(92 * sx, NY * 0.52, 68 * sx, 11, true);
+                stampAirfoil(128 * sx, NY * 0.42, 26 * sx, 24, true);
+            }
+
+            rebuildSmoothBoundaryNormals();
+            resetFluidOnly();
+        }
+
+        // --- Pointer & Touch Event Handling on Wind Tunnel Canvas ---
+        function getGridCoords(evt) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = evt.touches ? evt.touches[0].clientX : evt.clientX;
+            const clientY = evt.touches ? evt.touches[0].clientY : evt.clientY;
+            const normX = (clientX - rect.left) / rect.width;
+            const normY = (clientY - rect.top) / rect.height;
+            return {
+                x: Math.max(0, Math.min(NX - 1, Math.floor(normX * NX))),
+                y: Math.max(0, Math.min(NY - 1, Math.floor(normY * NY)))
+            };
+        }
+
+        function handlePointerDown(evt) {
+            if (evt.cancelable) evt.preventDefault();
+            const coords = getGridCoords(evt);
+            isPointerDown = true;
+            pointerButton = evt.button || 0;
+            startGridX = coords.x;
+            startGridY = coords.y;
+            currGridX = coords.x;
+            currGridY = coords.y;
+            prevGridX = coords.x;
+            prevGridY = coords.y;
+
+            if (currentTool === 'probe') {
+                updateProbeReadout(coords.x, coords.y);
+                return;
+            }
+
+            pushUndoState();
+
+            if (currentTool === 'rotate' && pointerButton !== 2) {
+                const sel = extractConnectedObject(coords.x, coords.y);
+                if (!sel.hasPixels) return;
+                rotBaseSolid = new Uint8Array(solid);
+                rotSelectedMask = sel.mask;
+                rotPivotX = sel.pivotX;
+                rotPivotY = sel.pivotY;
+                rotStartAngleRad = Math.atan2(coords.y - rotPivotY, coords.x - rotPivotX);
+                rotCurrentDeg = 0;
+                isDraggingRotation = true;
+                return;
+            }
+
+            if (currentTool === 'boxerase' && pointerButton !== 2) {
+                return; // Wait for drag rectangle release
+            }
+
+            const isErasing = (currentTool === 'eraser' || pointerButton === 2);
+
+            if (currentTool === 'brush' || currentTool === 'eraser' || pointerButton === 2) {
+                stampCircle(coords.x, coords.y, brushRadius, isErasing ? 0 : 1);
+            } else if (currentTool === 'wheel') {
+                stampCircle(coords.x, coords.y, brushRadius, 1);
+            } else if (currentTool === 'wing') {
+                stampAirfoil(coords.x, coords.y, brushRadius * 3.0, wingAoADeg, true);
+            }
+            rebuildSmoothBoundaryNormals();
+            restartGoldenWindowCapture();
+        }
+
+        function handlePointerMove(evt) {
+            const coords = getGridCoords(evt);
+            currGridX = coords.x;
+            currGridY = coords.y;
+
+            updateProbeReadout(coords.x, coords.y);
+
+            if (!isPointerDown) return;
+
+            if (currentTool === 'rotate' && isDraggingRotation && rotBaseSolid) {
+                const curAngle = Math.atan2(coords.y - rotPivotY, coords.x - rotPivotX);
+                let deltaDeg = ((curAngle - rotStartAngleRad) * 180) / Math.PI;
+                if (deltaDeg > 180) deltaDeg -= 360;
+                if (deltaDeg < -180) deltaDeg += 360;
+                rotCurrentDeg = deltaDeg;
+                applyRotationToGrid(rotBaseSolid, rotSelectedMask, rotPivotX, rotPivotY, rotCurrentDeg);
+                restartGoldenWindowCapture();
+                return;
+            }
+
+            if (currentTool === 'boxerase' && pointerButton !== 2) {
+                return;
+            }
+
+            const isErasing = (currentTool === 'eraser' || pointerButton === 2);
+            if (currentTool === 'brush' || currentTool === 'eraser' || pointerButton === 2) {
+                stampLine(prevGridX, prevGridY, coords.x, coords.y, brushRadius, isErasing ? 0 : 1);
+                rebuildSmoothBoundaryNormals();
+                restartGoldenWindowCapture();
+            }
+
+            prevGridX = coords.x;
+            prevGridY = coords.y;
+        }
+
+        function handlePointerUp(evt) {
+            if (!isPointerDown) return;
+
+            if (currentTool === 'rotate' && isDraggingRotation) {
+                isDraggingRotation = false;
+                rotBaseSolid = null;
+                rotSelectedMask = null;
+                rotCurrentDeg = 0;
+                restartGoldenWindowCapture();
+            } else if (currentTool === 'boxerase' && pointerButton !== 2) {
+                const x0 = Math.max(2, Math.min(startGridX, currGridX));
+                const x1 = Math.min(NX - 3, Math.max(startGridX, currGridX));
+                const y0 = Math.max(1, Math.min(startGridY, currGridY));
+                const y1 = Math.min(NY - 2, Math.max(startGridY, currGridY));
+                for (let y = y0; y <= y1; y++) {
+                    for (let x = x0; x <= x1; x++) {
+                        solid[IX(x, y)] = 0;
+                    }
+                }
+                rebuildSmoothBoundaryNormals();
+                restartGoldenWindowCapture();
+            } else if (currentTool === 'line' && pointerButton !== 2) {
+                stampLine(startGridX, startGridY, currGridX, currGridY, Math.max(1.2, brushRadius * 0.42), 1);
+                rebuildSmoothBoundaryNormals();
+                restartGoldenWindowCapture();
+            }
+            isPointerDown = false;
+        }
+
+        function updateProbeReadout(gx, gy) {
+            const idx = IX(gx, gy);
+            const readoutEl = document.getElementById('probe-readout');
+            if (solid[idx]) {
+                readoutEl.innerHTML = `<span class="text-amber-400">Solid Obstacle Body</span> at (${(gx * CELL_SIZE_M).toFixed(2)}m, ${((NY - gy) * CELL_SIZE_M).toFixed(2)}m)`;
+                return;
+            }
+            const vReal = windSpeedKmh / 3.6;
+            const localSpeedRatio = Math.hypot(u[idx], v[idx]) / Math.max(0.01, uInlet);
+            const localKmh = Math.round(localSpeedRatio * windSpeedKmh);
+            const dynPressurePa = 0.5 * AIR_DENSITY * vReal * vReal;
+            const cp = p[idx] / (0.5 * uInlet * uInlet);
+            const localPa = Math.round(cp * dynPressurePa * 0.6);
+            const paSign = localPa >= 0 ? '+' : '';
+
+            readoutEl.innerHTML = `Probe: <strong class="text-sky-400">${localKmh} km/h</strong> | &Delta;P: <strong class="${localPa >= 0 ? 'text-rose-400' : 'text-cyan-400'}">${paSign}${localPa} Pa</strong> | Curl: ${curl[idx].toFixed(2)}`;
+        }
+
+        // Attach Canvas Listeners
+        canvas.addEventListener('mousedown', handlePointerDown);
+        window.addEventListener('mousemove', (e) => {
+            if (e.target === canvas || isPointerDown) handlePointerMove(e);
+        });
+        window.addEventListener('mouseup', handlePointerUp);
+        canvas.addEventListener('mouseleave', () => {
+            if (!isPointerDown) {
+                currGridX = -1;
+                currGridY = -1;
+            }
+        });
+        canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+        // Touch Support
+        canvas.addEventListener('touchstart', handlePointerDown, { passive: false });
+        canvas.addEventListener('touchmove', handlePointerMove, { passive: false });
+        window.addEventListener('touchend', handlePointerUp);
+
+        // --- UI Controls & Callbacks ---
+        function selectTool(toolName) {
+            currentTool = toolName;
+            document.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
+            const activeBtn = document.getElementById(`tool-${toolName}`);
+            if (activeBtn) activeBtn.classList.add('active');
+
+            const labelEl = document.getElementById('label-brush-size');
+            if (toolName === 'wing') {
+                labelEl.textContent = 'Wing Chord Size';
+            } else if (toolName === 'wheel') {
+                labelEl.textContent = 'Wheel Radius';
+            } else {
+                labelEl.textContent = 'Brush / Tool Radius';
+            }
+        }
+
+        function updateToolSettings() {
+            brushRadius = parseFloat(document.getElementById('slider-brush-size').value);
+            wingAoADeg = parseFloat(document.getElementById('slider-wing-aoa').value);
+
+            document.getElementById('val-brush-size').textContent = `${brushRadius} cells (${(brushRadius * CELL_SIZE_M * 100).toFixed(0)} cm)`;
+            const aoaTag = wingAoADeg > 0 ? '(Downforce)' : (wingAoADeg < 0 ? '(Upward Lift)' : '(Neutral)');
+            document.getElementById('val-wing-aoa').textContent = `${wingAoADeg > 0 ? '+' : ''}${wingAoADeg}° ${aoaTag}`;
+        }
+
+        function updateTunnelParams() {
+            windSpeedKmh = parseFloat(document.getElementById('slider-wind-speed').value);
+            kinematicViscosity = parseFloat(document.getElementById('slider-viscosity').value);
+            vorticityStrength = parseFloat(document.getElementById('slider-vorticity').value);
+            numSmokeLines = parseInt(document.getElementById('slider-smoke-lines').value, 10);
+            movingGround = document.getElementById('toggle-moving-ground').checked;
+
+            // Scale solver lattice velocity softly with wind speed while maintaining CFL stability
+            uInlet = 1.05 + (windSpeedKmh / 300) * 0.70;
+
+            const ms = (windSpeedKmh / 3.6).toFixed(1);
+            document.getElementById('val-wind-speed').textContent = `${windSpeedKmh} km/h (${ms} m/s)`;
+
+            let viscLabel = 'Attached';
+            if (kinematicViscosity >= 0.11) viscLabel = 'Laminar';
+            else if (kinematicViscosity <= 0.01) viscLabel = 'Inviscid';
+            document.getElementById('val-viscosity').textContent = `${viscLabel} (${kinematicViscosity.toFixed(3)})`;
+
+            let vortLabel = 'Subtle';
+            if (vorticityStrength >= 2.0) vortLabel = 'Turbulent';
+            else if (vorticityStrength === 0) vortLabel = 'Smooth';
+            document.getElementById('val-vorticity').textContent = `${vortLabel} (${vorticityStrength.toFixed(1)})`;
+            document.getElementById('val-smoke-lines').textContent = `${numSmokeLines} Nozzles`;
+
+            restartGoldenWindowCapture();
+            updateLegendBar();
+        }
+
+        function setFieldMode(mode) {
+            fieldMode = mode;
+            document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`mode-${mode}`).classList.add('active');
+            updateLegendBar();
+        }
+
+        function updateLegendBar() {
+            const minEl = document.getElementById('legend-min');
+            const maxEl = document.getElementById('legend-max');
+            const gradEl = document.getElementById('legend-gradient');
+
+            if (fieldMode === 'velocity') {
+                minEl.textContent = '0 km/h';
+                maxEl.textContent = `${Math.round(windSpeedKmh * 1.85)} km/h`;
+                gradEl.style.background = 'linear-gradient(90deg, rgb(10,15,45), rgb(18,92,180), rgb(16,185,160), rgb(245,190,35), rgb(239,68,68), rgb(255,235,250))';
+            } else if (fieldMode === 'pressure') {
+                minEl.textContent = 'Suction (-P)';
+                maxEl.textContent = 'Stagnation (+P)';
+                gradEl.style.background = 'linear-gradient(90deg, rgb(6,182,212), rgb(37,99,235), rgb(22,30,46), rgb(234,88,12), rgb(254,240,138))';
+            } else if (fieldMode === 'vorticity') {
+                minEl.textContent = 'CW Eddy (-ω)';
+                maxEl.textContent = 'CCW Eddy (+ω)';
+                gradEl.style.background = 'linear-gradient(90deg, rgb(34,211,238), rgb(12,18,30), rgb(244,114,182))';
+            } else {
+                minEl.textContent = 'Dark';
+                maxEl.textContent = 'Smoke Only';
+                gradEl.style.background = '#090d16';
+            }
+        }
+
+        function togglePause() {
+            isPaused = !isPaused;
+            const icon = document.getElementById('icon-play-pause');
+            const text = document.getElementById('text-play-pause');
+            if (isPaused) {
+                icon.className = 'ph-fill ph-play';
+                text.textContent = 'Resume';
+            } else {
+                icon.className = 'ph-fill ph-pause';
+                text.textContent = 'Pause';
+            }
+        }
+
+        function stepSimulationOnce() {
+            if (!isPaused) togglePause();
+            stepFluidPhysics();
+            computeAerodynamicForces();
+            renderWindTunnel();
+            renderSparkline();
+        }
+
+        // --- Responsive Canvas Resizing ---
+        function resizeCanvases() {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = Math.max(440, Math.floor(rect.width));
+            canvas.height = Math.max(200, Math.floor(rect.height));
+
+            const sRect = sparkCanvas.parentElement.getBoundingClientRect();
+            sparkCanvas.width = Math.max(200, Math.floor(sRect.width));
+            sparkCanvas.height = Math.max(60, Math.floor(sRect.height));
+
+            resizeBaselineCanvases();
+        }
+
+        window.addEventListener('resize', () => {
+            resizeCanvases();
+            renderWindTunnel();
+            renderSparkline();
+            stepAndRenderBaselinePanes();
+        });
+
+        // --- Main Animation & Solver Loop ---
+        let lastFrameTime = performance.now();
+        let frameCount = 0;
+
+        function animateLoop(now) {
+            frameCount++;
+            if (now - lastFrameTime >= 500) {
+                const fps = Math.round((frameCount * 1000) / (now - lastFrameTime));
+                document.getElementById('fps-badge').textContent = `${Math.min(60, fps)} FPS`;
+                frameCount = 0;
+                lastFrameTime = now;
+            }
+
+            if (!isPaused) {
+                if (goldenLoopEnabled && isPlayingGoldenLoop) {
+                    // Play back the 3.0s - 4.0s Golden Window smoothly while keeping particles flowing!
+                    stepGoldenLoopPlayback();
+                } else {
+                    stepFluidPhysics();
+                    computeAerodynamicForces();
+
+                    simElapsedSec += SIM_DT_SEC;
+                    if (goldenLoopEnabled) {
+                        if (simElapsedSec >= LOOP_START_SEC && simElapsedSec <= LOOP_END_SEC) {
+                            captureGoldenFrame();
+                        } else if (simElapsedSec > LOOP_END_SEC && recordedFrames.length >= 4) {
+                            isPlayingGoldenLoop = true;
+                            loopPlayCursor = recordedFrames.length - 1;
+                            loopPlayDir = -1;
+                        }
+                        updateLoopBadgeDOM();
+                    }
+                }
+            }
+
+            renderWindTunnel();
+            renderSparkline();
+            stepAndRenderBaselinePanes();
+
+            requestAnimationFrame(animateLoop);
+        }
+
+        window.onload = function () {
+            initSimulation();
+            requestAnimationFrame(animateLoop);
+        };
+    </script>
+</body>
+</html>
